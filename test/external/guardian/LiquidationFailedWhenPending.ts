@@ -295,7 +295,7 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
     snapshotId = await revertToSnapshotAndCapture(snapshotId);
   });
 
-  describe("#prepareForLiquidation", () => {
+  describe.only("Guardian:: Liquidation Delay And Prevention", () => {
     let wethAmount: BigNumber;
     let amountWeiForLiquidation: BigNumber;
 
@@ -309,7 +309,8 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
       account: BigNumber,
       devalueCollateral: boolean = true,
       pushFullyUnderwater: boolean = true,
-      performZapType: ZapType = ZapType.None
+      performZapType: ZapType = ZapType.None,
+      withdrawAmt: BigNumber = smallAmountWei
     ) {
       // Create debt for the position
       let gmPrice = (await core.dolomiteMargin.getMarketPrice(marketId)).value;
@@ -356,7 +357,7 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
       } else if (performZapType === ZapType.Withdraw) {
         const result = await vault.initiateUnwrapping(
           account,
-          smallAmountWei,
+          withdrawAmt,
           core.tokens.nativeUsdc!.address,
           ONE_BI,
           { value: GMX_V2_EXECUTION_FEE }
@@ -755,24 +756,37 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
         zapParam
       );
 
-      await checkStateAfterUnwrapping(
-        borrowAccountNumber,
-        FinishState.Liquidated,
-        vaultErc20Balance,
-        totalOutputAmount,
-        isFrozen,
-        outputAmountForSwap
-      );
+
     }
 
-    it.only("should fail liquidation during a pending withdrawal", async () => {
+    it("Liquidation Fails When Pending Withdrawal For Entire Balance", async () => {
+        // Vault is unfrozen prior to unwrapping
+        expect(await vault.isVaultFrozen()).to.be.false;
+        // Vault initiates a wrapping and becomes frozen
+        await setupBalances(borrowAccountNumber, true, true, ZapType.Withdraw, amountWei);
+        expect(await vault.isVaultFrozen()).to.be.true;
+  
+        // Beginning the liquidation process fails because the 
+        await expect(liquidatorProxy.prepareForLiquidation(
+          liquidAccount,
+          marketId,
+          smallAmountWei,
+          core.marketIds.nativeUsdc!,
+          ONE_BI,
+          NO_EXPIRY
+        )).to.be.revertedWith("IsolationModeVaultV1Freezable: Account is frozen <0xee7fd47b789268d86d48af418083a444810efee6, 1>");
+        
+       
+    });
+
+    it("Core Protocol Liquidation Fails When Pending Withdrawal", async () => {
       // Vault is unfrozen prior to unwrapping
       expect(await vault.isVaultFrozen()).to.be.false;
       // Vault initiates a wrapping and becomes frozen
-      await setupBalances(borrowAccountNumber, true, true, ZapType.Withdraw);
+      await setupBalances(borrowAccountNumber, true, true, ZapType.Withdraw, smallAmountWei);
       expect(await vault.isVaultFrozen()).to.be.true;
 
-      // Begin liquidation
+      // Begin liquidation process
       const result1 = await liquidatorProxy.prepareForLiquidation(
         liquidAccount,
         marketId,
@@ -786,7 +800,6 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
         (await eventEmitter.queryFilter(filter, result1.blockNumber))[0].args
           .key
       );
-      console.log("PASSED LIQUIDATION CREATION");
       const result2 = await performUnwrapping(
         withdrawalKeys[withdrawalKeys.length - 1]
       );
@@ -799,9 +812,10 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
       // Vault remains frozen
       expect(await vault.isVaultFrozen()).to.be.true;
 
-      console.log("Prior to performing liquidation...");
-      await performLiquidationAndCheckState(amountWei, false);
-      console.log("After performing liquidation...");
+      // Attempt to finish the liquidation from the Core protocol
+      await expect(performLiquidationAndCheckState(amountWei, true)).to.be.revertedWith('AsyncIsolationModeUnwrapperImpl: All trades must be retryable');
+
     });
+     
   });
 });
