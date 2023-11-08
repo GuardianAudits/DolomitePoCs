@@ -755,35 +755,47 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
         liquidAccount,
         zapParam
       );
-
-
     }
 
     it("Liquidation Fails When Pending Withdrawal For Entire Balance", async () => {
-        // Vault is unfrozen prior to unwrapping
-        expect(await vault.isVaultFrozen()).to.be.false;
-        // Vault initiates a wrapping and becomes frozen
-        await setupBalances(borrowAccountNumber, true, true, ZapType.Withdraw, amountWei);
-        expect(await vault.isVaultFrozen()).to.be.true;
-  
-        // Beginning the liquidation process fails because the 
-        await expect(liquidatorProxy.prepareForLiquidation(
+      // Vault is unfrozen prior to unwrapping
+      expect(await vault.isVaultFrozen()).to.be.false;
+      // Vault initiates a wrapping and becomes frozen
+      await setupBalances(
+        borrowAccountNumber,
+        true,
+        true,
+        ZapType.Withdraw,
+        amountWei
+      );
+      expect(await vault.isVaultFrozen()).to.be.true;
+
+      // Beginning the liquidation process fails because the withdrawal is for the user's entire balance
+      await expect(
+        liquidatorProxy.prepareForLiquidation(
           liquidAccount,
           marketId,
           smallAmountWei,
           core.marketIds.nativeUsdc!,
           ONE_BI,
           NO_EXPIRY
-        )).to.be.revertedWith("IsolationModeVaultV1Freezable: Account is frozen <0xee7fd47b789268d86d48af418083a444810efee6, 1>");
-        
-       
+        )
+      ).to.be.revertedWith(
+        "IsolationModeVaultV1Freezable: Account is frozen <0xee7fd47b789268d86d48af418083a444810efee6, 1>"
+      );
     });
 
     it("Core Protocol Liquidation Fails When Pending Withdrawal", async () => {
       // Vault is unfrozen prior to unwrapping
       expect(await vault.isVaultFrozen()).to.be.false;
       // Vault initiates a wrapping and becomes frozen
-      await setupBalances(borrowAccountNumber, true, true, ZapType.Withdraw, smallAmountWei);
+      await setupBalances(
+        borrowAccountNumber,
+        true,
+        true,
+        ZapType.Withdraw,
+        smallAmountWei
+      );
       expect(await vault.isVaultFrozen()).to.be.true;
 
       // Begin liquidation process
@@ -813,9 +825,11 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
       expect(await vault.isVaultFrozen()).to.be.true;
 
       // Attempt to finish the liquidation from the Core protocol
-      await expect(performLiquidationAndCheckState(amountWei, true)).to.be.revertedWith('AsyncIsolationModeUnwrapperImpl: All trades must be retryable');
-
+      await expect(
+        performLiquidationAndCheckState(amountWei, true)
+      ).to.be.revertedWith(
+        "AsyncIsolationModeUnwrapperImpl: All trades must be retryable"
+      );
     });
-     
   });
 });
