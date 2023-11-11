@@ -555,6 +555,23 @@ describe('IsolationModeFreezableLiquidatorProxy::Issues', () => {
       };
     }
 
+    async function isVaporizable(account: AccountStruct) {
+      let hasNegative = false;
+      const markets = await core.dolomiteMargin.getAccountMarketsWithBalances(account);
+      for (const market of markets) {
+        const par = await core.dolomiteMargin.getAccountPar(account, market.toNumber());
+        if (par.value.isZero()) {
+          continue;
+        } else if (par.sign) {
+          console.log(`Account ${account.number} has a positive balance of ${par.value.toString()} in the market ${market}`);
+          return false;
+        } else {
+          hasNegative = true;
+        }
+      }
+      return hasNegative;
+    }
+
     it.only('Severely underwater position cannot be liquidated', async () => {
       await setupBalances(borrowAccountNumber);
 
@@ -600,7 +617,11 @@ describe('IsolationModeFreezableLiquidatorProxy::Issues', () => {
         ),
         `function call to a non-contract account`,
       );
-      
+
+      // show account is not Vaporizable because not all of its markets are negative, specifically the GM one
+      const _isVaporizable = await isVaporizable(liquidAccount);
+      expect(_isVaporizable).to.be.false;
+
       // decreasing the price of WETH will result in a healthier liquidation position
       const decreasedWethPrice = initialWethPrice.mul(90).div(100);
       await core.testEcosystem!.testPriceOracle.setPrice(core.tokens.weth.address, decreasedWethPrice);
