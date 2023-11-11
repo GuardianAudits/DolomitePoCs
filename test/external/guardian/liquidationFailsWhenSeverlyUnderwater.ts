@@ -607,7 +607,11 @@ describe('IsolationModeFreezableLiquidatorProxy::Issues', () => {
       const initialWethPrice = (await core.dolomiteMargin.getMarketPrice(core.marketIds.weth)).value;
       const { zapParam: initialZapParam } = await calculateZapParams(initialWethPrice);
       
-      // liquidation fails due to the severely undercollateralized issue at hand
+      // Actions that are done in a liquidation: [CallFunction, Sell, CallFunction, Sell]
+      // liquidation fails, since being severely undercollateralized, the entire available user amount
+      // will be used. That results in the first sale action deleting the withdrawal position and when
+      // the second Call action tries to invoke a function on the vault (which is now address(0)) it
+      // reverts with the error: `function call to a non-contract account`
       await expectThrow(
         liquidateV4WithZapParam(
           core,
