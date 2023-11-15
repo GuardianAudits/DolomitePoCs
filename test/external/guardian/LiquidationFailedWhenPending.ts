@@ -757,10 +757,10 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
       );
     }
 
-    it("Liquidation Fails When Pending Withdrawal For Entire Balance", async () => {
+    it.only("Liquidation Fails When Pending Withdrawal For Entire Balance", async () => {
       // Vault is unfrozen prior to unwrapping
       expect(await vault.isVaultFrozen()).to.be.false;
-      // Vault initiates a wrapping and becomes frozen
+      // Vault initiates an unwrapping and becomes frozen
       await setupBalances(
         borrowAccountNumber,
         true,
@@ -770,7 +770,43 @@ describe("IsolationModeFreezableLiquidatorProxy", () => {
       );
       expect(await vault.isVaultFrozen()).to.be.true;
 
-      // Beginning the liquidation process fails because the withdrawal is for the user's entire balance
+      // Beginning the liquidation process fails because the above withdrawal was for the user's entire balance
+      // As a result, no part of the balance is currently available for liquidation
+      await expect(
+        liquidatorProxy.prepareForLiquidation(
+          liquidAccount,
+          marketId,
+          smallAmountWei,
+          core.marketIds.nativeUsdc!,
+          ONE_BI,
+          NO_EXPIRY
+        )
+      ).to.be.revertedWith(
+        "IsolationModeVaultV1Freezable: Account is frozen <0xee7fd47b789268d86d48af418083a444810efee6, 1>"
+      );
+
+      // Cancel the withdrawal and repeat
+      // The withdrawal can be cancelled by GMX as well
+      await mine(1200);
+      await vault.connect(core.hhUser1).cancelWithdrawal(withdrawalKeys[0]);
+      expect(await vault.isVaultFrozen()).to.be.false;
+
+      // Vault initiates an unwrapping and becomes frozen
+      const result = await vault.initiateUnwrapping(
+        borrowAccountNumber,
+        amountWei,
+        core.tokens.nativeUsdc!.address,
+        ONE_BI,
+        { value: GMX_V2_EXECUTION_FEE }
+      );
+      const filter = eventEmitter.filters.AsyncWithdrawalCreated();
+      withdrawalKeys.push(
+        (await eventEmitter.queryFilter(filter, result.blockNumber))[0].args
+          .key
+      );
+      expect(await vault.isVaultFrozen()).to.be.true;
+
+      // Beginning the liquidation process fails once again
       await expect(
         liquidatorProxy.prepareForLiquidation(
           liquidAccount,
