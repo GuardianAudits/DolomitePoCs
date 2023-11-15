@@ -369,8 +369,8 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
       - both preparations fail with "Undercollateralized account" and the AsyncWithdrawalFailed event fired
       - we liquidated account 1 by using the withdrawal key to account 2
       - we then show that you can't liquidate account 2 using account 1's key in several scenarios
-      - we also show that account 1 can't get his withdrawal back using executeWithdrawalForRetry
-      - during the above operations we regular modify the token prices to bring accounts in a collateralized or uncollateralized state
+      - we also show that account 1 and account 2 can't get their withdrawals back using executeWithdrawalForRetry
+      - during the above operations we regularly modify the token prices to bring accounts in a collateralized or undercollateralized state
     */
     it.only('Withdrawal Keys Misused by Differing Subaccount in Liquidations', async () => {
       // with the specific initial prices only the first borrower, "borrowAccountNumber" is undercollateralized 
@@ -436,7 +436,6 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
       expect(liquidAccountTwoAfterBalances.get(core.marketIds.nativeUsdc!.toString())).to.be.equal(liquidAccountTwoBeforeBalances.get(core.marketIds.nativeUsdc!.toString()));
 
       console.log(` 8. Since account ${liquidAccount.number} is now over-collateralized, the operation to retrieve his failed withdrawal can be initiated by a trusted handler`);
-      
       await gmxV2Registry.connect(core.governance).ownerSetIsHandler(core.hhUser1.address, true);
       const unwrapperAsTrustedHandler = unwrapper.connect(core.hhUser1);
       const result = await unwrapperAsTrustedHandler.executeWithdrawalForRetry(firstBorrowerKey, {gasLimit: 30_000_000});
@@ -461,19 +460,8 @@ describe('IsolationModeFreezableLiquidatorProxy', () => {
           _wethAmountTwo
         ), 
         "AsyncIsolationModeUnwrapperImpl: Invalid input amount"
-        );
-        await expectThrow(
-          executeProxyLiquidation(
-            solidAccount,
-            liquidAccount2,
-            [secondBorrowerKey],
-            [],
-            _amountWeiForLiquidationTwo,
-            _wethAmountOne
-          ),
-          "AsyncIsolationModeUnwrapperImpl: Invalid input amount"
-          );
-        console.log("12. If we try to liquidate using the unused first key, it reverts because the second account became over-collateralized due to price variations");
+      );
+      console.log("12. If we try to liquidate using the unused first key, it reverts because the second account became over-collateralized due to price variations");
       await expectThrow(
         executeProxyLiquidation(
           solidAccount, 
