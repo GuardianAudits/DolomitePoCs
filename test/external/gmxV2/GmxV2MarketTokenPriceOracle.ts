@@ -4,11 +4,11 @@ import { setNextBlockTimestamp } from '@nomicfoundation/hardhat-network-helpers/
 import { expect } from 'chai';
 import { BigNumber, BigNumberish } from 'ethers';
 import {
-  GmxV2Registry,
   GmxV2IsolationModeUnwrapperTraderV2,
   GmxV2IsolationModeVaultFactory,
   GmxV2IsolationModeWrapperTraderV2,
   GmxV2MarketTokenPriceOracle,
+  GmxV2Registry,
   TestGmxReader,
   TestGmxReader__factory,
 } from 'src/types';
@@ -17,16 +17,16 @@ import { Network, ZERO_BI } from 'src/utils/no-deps-constants';
 import { revertToSnapshotAndCapture, snapshot } from 'test/utils';
 import { expectEvent, expectThrow } from 'test/utils/assertions';
 import {
-  createGmxV2Registry,
   createGmxV2IsolationModeTokenVaultV1,
   createGmxV2IsolationModeUnwrapperTraderV2,
   createGmxV2IsolationModeVaultFactory,
   createGmxV2IsolationModeWrapperTraderV2,
   createGmxV2Library,
   createGmxV2MarketTokenPriceOracle,
+  createGmxV2Registry,
 } from 'test/utils/ecosystem-token-utils/gmx';
 import { CoreProtocol, setupCoreProtocol, setupTestMarket } from 'test/utils/setup';
-import { GMX_V2_CALLBACK_GAS_LIMIT } from '../../../src/utils/constructors/gmx';
+import { GMX_V2_CALLBACK_GAS_LIMIT, GMX_V2_EXECUTION_FEE } from '../../../src/utils/constructors/gmx';
 
 const GM_ETH_USD_PRICE_NO_MAX_WEI = BigNumber.from('919979975416060612'); // $0.9199
 const GM_ETH_USD_PRICE_MAX_WEI = BigNumber.from('918897815809950545'); // $0.9188
@@ -68,6 +68,7 @@ describe('GmxV2MarketTokenPriceOracle', () => {
       allowableMarketIds,
       core.gmxEcosystemV2!.gmxEthUsdMarketToken,
       userVaultImplementation,
+      GMX_V2_EXECUTION_FEE,
     );
     unwrapper = await createGmxV2IsolationModeUnwrapperTraderV2(
       core,

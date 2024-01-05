@@ -18,6 +18,11 @@ import {
   IGmxV2Registry,
   IGmxV2IsolationModeVaultFactory,
   TestGLPIsolationModeTokenVaultV1,
+  GMXIsolationModeTokenVaultV1,
+  IGMXIsolationModeVaultFactory,
+  GMXIsolationModeVaultFactory,
+  GLPIsolationModeTokenVaultV2,
+  TestGLPIsolationModeTokenVaultV2,
 } from '../../types';
 
 export function getGLPPriceOracleV1ConstructorParams(
@@ -40,7 +45,7 @@ export function getGLPUnwrapperTraderV1ConstructorParams(
   ];
 }
 
-export function getGLPUnwrapperTraderV2ConstructorParams(
+export function getGLPIsolationModeUnwrapperTraderV2ConstructorParams(
   core: CoreProtocol,
   dfsGlp: IGLPIsolationModeVaultFactory | GLPIsolationModeVaultFactory | IGLPIsolationModeVaultFactoryOld,
   gmxRegistry: IGmxRegistryV1 | GmxRegistryV1,
@@ -55,7 +60,9 @@ export function getGLPUnwrapperTraderV2ConstructorParams(
 export type GmxUserVaultImplementation =
   IGLPIsolationModeTokenVaultV1
   | GLPIsolationModeTokenVaultV1
-  | TestGLPIsolationModeTokenVaultV1;
+  | TestGLPIsolationModeTokenVaultV1
+  | GLPIsolationModeTokenVaultV2
+  | TestGLPIsolationModeTokenVaultV2;
 
 export function getGLPIsolationModeVaultFactoryConstructorParams(
   core: CoreProtocol,
@@ -86,7 +93,7 @@ export function getGLPWrapperTraderV1ConstructorParams(
   ];
 }
 
-export function getGLPWrapperTraderV2ConstructorParams(
+export function getGLPIsolationModeWrapperTraderV2ConstructorParams(
   core: CoreProtocol,
   dfsGlp: IGLPIsolationModeVaultFactory | GLPIsolationModeVaultFactory | IGLPIsolationModeVaultFactoryOld,
   gmxRegistry: IGmxRegistryV1 | GmxRegistryV1,
@@ -95,6 +102,28 @@ export function getGLPWrapperTraderV2ConstructorParams(
     gmxRegistry.address,
     dfsGlp.address,
     core.dolomiteMargin.address,
+  ];
+}
+
+export function getGMXWrapperTraderV2ConstructorParams(
+  dGmx: IGMXIsolationModeVaultFactory | GMXIsolationModeVaultFactory,
+  core: CoreProtocol,
+): any[] {
+  return [
+    dGmx.address,
+    core.dolomiteMargin.address,
+    core.dolomiteRegistry.address,
+  ];
+}
+
+export function getGMXUnwrapperTraderV2ConstructorParams(
+  dGmx: IGMXIsolationModeVaultFactory | GMXIsolationModeVaultFactory,
+  core: CoreProtocol,
+): any[] {
+  return [
+    dGmx.address,
+    core.dolomiteMargin.address,
+    core.dolomiteRegistry.address,
   ];
 }
 
@@ -107,6 +136,7 @@ export async function getGmxRegistryConstructorParams(
   }
 
   const initializer = {
+    bnGmx: core.gmxEcosystem.bnGmx.address,
     esGmx: core.gmxEcosystem.esGmx.address,
     fsGlp: core.gmxEcosystem.fsGlp.address,
     glp: core.gmxEcosystem.glp.address,
@@ -126,6 +156,20 @@ export async function getGmxRegistryConstructorParams(
     implementation.address,
     core.dolomiteMargin.address,
     (await implementation.populateTransaction.initialize(initializer, core.dolomiteRegistry.address)).data!,
+  ];
+}
+
+export function getGMXIsolationModeVaultFactoryConstructorParams(
+  gmxRegistry: IGmxRegistryV1 | GmxRegistryV1,
+  userVaultImplementation: GMXIsolationModeTokenVaultV1,
+  core: CoreProtocol,
+): any[] {
+  return [
+    gmxRegistry.address,
+    core.gmxEcosystem!.gmx.address,
+    core.borrowPositionProxyV2.address,
+    userVaultImplementation.address,
+    core.dolomiteMargin.address,
   ];
 }
 
@@ -156,7 +200,7 @@ export async function getGmxV2RegistryConstructorParams(
   ];
 }
 
-export const GMX_V2_EXECUTION_FEE = parseEther('0.0075');
+export const GMX_V2_EXECUTION_FEE = BigNumber.from('13626962204375000');
 export const GMX_V2_CALLBACK_GAS_LIMIT = BigNumber.from('2000000');
 
 export function getGmxV2IsolationModeVaultFactoryConstructorParams(
@@ -166,6 +210,7 @@ export function getGmxV2IsolationModeVaultFactoryConstructorParams(
   collateralMarketIds: BigNumberish[],
   gmToken: IGmxMarketToken,
   userVaultImplementation: GmxV2IsolationModeTokenVaultV1,
+  executionFee: BigNumberish,
 ): any[] {
   if (!core.gmxEcosystem) {
     throw new Error('Gmx ecosystem not initialized');
@@ -173,7 +218,7 @@ export function getGmxV2IsolationModeVaultFactoryConstructorParams(
 
   return [
     gmxRegistry.address,
-    GMX_V2_EXECUTION_FEE,
+    executionFee,
     [
       gmToken.address,
       core.tokens.weth.address,

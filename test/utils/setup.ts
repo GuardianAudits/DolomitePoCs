@@ -21,8 +21,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BaseContract, BigNumberish, ContractInterface, Signer } from 'ethers';
 import { ethers, network } from 'hardhat';
 import { Network, NETWORK_TO_DEFAULT_BLOCK_NUMBER_MAP, NetworkName } from 'src/utils/no-deps-constants';
-import Deployments from '../../scripts/deployments.json';
+import Deployments, * as deployments from '../../scripts/deployments.json';
 import {
+  ARBIsolationModeVaultFactory__factory, ARBRegistry__factory,
   DolomiteCompatibleWhitelistForPlutusDAO,
   DolomiteCompatibleWhitelistForPlutusDAO__factory,
   DolomiteRegistryImplementation,
@@ -31,8 +32,14 @@ import {
   GLPIsolationModeUnwrapperTraderV1__factory,
   GLPIsolationModeWrapperTraderV1,
   GLPIsolationModeWrapperTraderV1__factory,
+  IAlgebraV3Pool,
+  IAlgebraV3Pool__factory,
+  IARB,
+  IARB__factory, IARBIsolationModeVaultFactory, IARBRegistry,
   IBorrowPositionProxyV2,
   IBorrowPositionProxyV2__factory,
+  IChainlinkPriceOracle,
+  IChainlinkPriceOracle__factory,
   IChainlinkPriceOracleOld,
   IChainlinkPriceOracleOld__factory,
   IChainlinkRegistry,
@@ -51,10 +58,14 @@ import {
   IDolomiteRegistry__factory,
   IERC20,
   IERC20__factory,
+  IERC20Mintable,
+  IERC20Mintable__factory,
   IERC4626,
   IERC4626__factory,
   IEsGmxDistributor,
   IEsGmxDistributor__factory,
+  IEventEmitterRegistry,
+  IEventEmitterRegistry__factory,
   IExpiry,
   IExpiry__factory,
   IGenericTraderProxyV1,
@@ -70,7 +81,7 @@ import {
   IGmxDepositHandler,
   IGmxDepositHandler__factory,
   IGmxExchangeRouter,
-  IGmxExchangeRouter__factory,
+  IGmxExchangeRouter__factory, IGMXIsolationModeVaultFactory, IGMXIsolationModeVaultFactory__factory,
   IGmxMarketToken,
   IGmxMarketToken__factory,
   IGmxReader,
@@ -91,6 +102,8 @@ import {
   IJonesGLPAdapter__factory,
   IJonesGLPVaultRouter,
   IJonesGLPVaultRouter__factory,
+  IJonesUSDCFarm,
+  IJonesUSDCFarm__factory,
   IJonesUSDCRegistry,
   IJonesUSDCRegistry__factory,
   IJonesWhitelistController,
@@ -113,6 +126,8 @@ import {
   IParaswapAugustusRouter__factory,
   IParaswapFeeClaimer,
   IParaswapFeeClaimer__factory,
+  IPartiallyDelayedMultiSig,
+  IPartiallyDelayedMultiSig__factory,
   IPendleGLPRegistry,
   IPendleGLPRegistry__factory,
   IPendlePtMarket,
@@ -121,6 +136,8 @@ import {
   IPendlePtOracle__factory,
   IPendlePtToken,
   IPendlePtToken__factory,
+  IPendleRegistry,
+  IPendleRegistry__factory,
   IPendleRouter,
   IPendleRouter__factory,
   IPendleSyToken,
@@ -149,6 +166,8 @@ import {
   ParaswapAggregatorTrader__factory,
   PendlePtGLP2024IsolationModeVaultFactory,
   PendlePtGLP2024IsolationModeVaultFactory__factory,
+  PendlePtIsolationModeVaultFactory,
+  PendlePtIsolationModeVaultFactory__factory,
   PendleYtGLP2024IsolationModeVaultFactory,
   PendleYtGLP2024IsolationModeVaultFactory__factory,
   PlutusVaultGLPIsolationModeUnwrapperTraderV1,
@@ -163,19 +182,32 @@ import {
   TestInterestSetter__factory,
   TestPriceOracle,
   TestPriceOracle__factory,
+  VesterImplementationV1,
+  VesterImplementationV1__factory,
+  VesterProxy,
+  VesterProxy__factory,
 } from '../../src/types';
 import {
-  ALWAYS_ZERO_INTEREST_SETTER_MAP,
+  ARB_MAP,
   ATLAS_SI_TOKEN_MAP,
+  BN_GMX_MAP,
+  CHAINLINK_PRICE_ORACLE_MAP,
   CHAINLINK_PRICE_ORACLE_OLD_MAP,
   CHAINLINK_REGISTRY_MAP,
+  D_ARB_MAP,
+  D_GMX_MAP,
   DAI_MAP,
   DFS_GLP_MAP,
   DJ_USDC,
   DPLV_GLP_MAP,
   DPT_GLP_2024_MAP,
+  DPT_R_ETH_JUN_2025_MAP,
+  DPT_WST_ETH_JUN_2024_MAP,
+  DPT_WST_ETH_JUN_2025_MAP,
+  DPX_MAP, DPX_WETH_V3_POOL_MAP,
   DYT_GLP_2024_MAP,
-  ES_GMX_DISTRIBUTOR_MAP,
+  ES_GMX_DISTRIBUTOR_FOR_STAKED_GLP_MAP,
+  ES_GMX_DISTRIBUTOR_FOR_STAKED_GMX_MAP,
   ES_GMX_MAP,
   FS_GLP_MAP,
   GLP_MANAGER_MAP,
@@ -194,33 +226,56 @@ import {
   GMX_VAULT_MAP,
   GMX_WITHDRAWAL_HANDLER_MAP,
   GMX_WITHDRAWAL_VAULT_MAP,
+  GRAIL_MAP,
+  GRAIL_USDC_V3_POOL_MAP,
+  GRAIL_WETH_V3_POOL_MAP,
   JONES_ECOSYSTEM_GOVERNOR_MAP,
   JONES_GLP_ADAPTER_MAP,
   JONES_GLP_VAULT_ROUTER_MAP,
+  JONES_JUSDC_FARM_MAP,
   JONES_JUSDC_MAP,
   JONES_JUSDC_RECEIPT_TOKEN_MAP,
+  JONES_MAP,
+  JONES_WETH_V3_POOL_MAP,
   JONES_WHITELIST_CONTROLLER_MAP,
   LINK_MAP,
   MAGIC_GLP_MAP,
+  MAGIC_MAP,
   MIM_MAP,
   NATIVE_USDC_MAP,
   ODOS_ROUTER_MAP,
   PARASWAP_AUGUSTUS_ROUTER_MAP,
   PARASWAP_FEE_CLAIMER_MAP,
   PARASWAP_TRANSFER_PROXY_MAP,
+  PENDLE_MAP,
   PENDLE_PT_GLP_2024_MARKET_MAP,
   PENDLE_PT_GLP_2024_TOKEN_MAP,
   PENDLE_PT_ORACLE_MAP,
+  PENDLE_PT_RETH_MARKET_MAP,
+  PENDLE_PT_RETH_TOKEN_MAP,
+  PENDLE_PT_WST_ETH_2024_MARKET_MAP,
+  PENDLE_PT_WST_ETH_2024_TOKEN_MAP,
+  PENDLE_PT_WST_ETH_2025_MARKET_MAP,
+  PENDLE_PT_WST_ETH_2025_TOKEN_MAP,
   PENDLE_ROUTER_MAP,
-  PENDLE_SY_GLP_2024_TOKEN_MAP,
+  PENDLE_SY_GLP_TOKEN_MAP,
+  PENDLE_SY_RETH_TOKEN_MAP,
+  PENDLE_SY_WST_ETH_TOKEN_MAP,
   PENDLE_YT_GLP_2024_TOKEN_MAP,
   PLS_TOKEN_MAP,
   PLV_GLP_FARM_MAP,
   PLV_GLP_MAP,
   PLV_GLP_ROUTER_MAP,
+  PREMIA_MAP,
+  PREMIA_WETH_V3_POOL_MAP,
+  RDNT_MAP,
+  RETH_MAP,
   S_GLP_MAP,
   S_GMX_MAP,
   SBF_GMX_MAP,
+  SIZE_MAP,
+  SIZE_WETH_V3_POOL_MAP,
+  ST_ETH_MAP,
   UMAMI_CONFIGURATOR_MAP,
   UMAMI_LINK_VAULT_MAP,
   UMAMI_STORAGE_VIEWER_MAP,
@@ -234,6 +289,7 @@ import {
   V_GMX_MAP,
   WBTC_MAP,
   WETH_MAP,
+  WST_ETH_MAP,
 } from '../../src/utils/constants';
 import { createContractWithAbi } from '../../src/utils/dolomite-utils';
 import { createDolomiteRegistryImplementation } from './dolomite';
@@ -253,19 +309,38 @@ export interface CoreProtocolSetupConfig {
 export interface CoreProtocolConfig {
   blockNumber: number;
   network: Network;
+  networkNumber: number;
 }
 
 export interface AbraEcosystem {
   magicGlp: IERC4626;
 }
 
+export interface ArbEcosystem {
+  arb: IARB;
+  live: {
+    dArb: IARBIsolationModeVaultFactory;
+    arbRegistry: IARBRegistry;
+    arbRegistryProxy: RegistryProxy;
+  };
+}
+
 export interface AtlasEcosystem {
   siToken: IERC20;
 }
 
+export interface CamelotEcosystem {
+  dpxWethV3Pool: IAlgebraV3Pool;
+  grailUsdcV3Pool: IAlgebraV3Pool;
+  grailWethV3Pool: IAlgebraV3Pool;
+  sizeWethV3Pool: IAlgebraV3Pool;
+}
+
 export interface GmxEcosystem {
-  esGmx: IERC20;
-  esGmxDistributor: IEsGmxDistributor;
+  bnGmx: IERC20;
+  esGmx: IERC20Mintable;
+  esGmxDistributorForStakedGlp: IEsGmxDistributor;
+  esGmxDistributorForStakedGmx: IEsGmxDistributor;
   fsGlp: IERC20;
   glp: IERC20;
   glpManager: IGLPManager;
@@ -279,10 +354,12 @@ export interface GmxEcosystem {
   vGlp: IGmxVester;
   vGmx: IGmxVester;
   live: {
-    glpIsolationModeFactory: IGLPIsolationModeVaultFactoryOld;
+    dGlp: IGLPIsolationModeVaultFactoryOld;
+    dGmx: IGMXIsolationModeVaultFactory,
     glpIsolationModeUnwrapperTraderV1: GLPIsolationModeUnwrapperTraderV1;
     glpIsolationModeWrapperTraderV1: GLPIsolationModeWrapperTraderV1;
     gmxRegistry: IGmxRegistryV1;
+    gmxRegistryProxy: RegistryProxy;
   };
 }
 
@@ -299,17 +376,32 @@ export interface GmxEcosystemV2 {
   gmxWithdrawalVault: SignerWithAddress;
 }
 
+export interface InterestSetters {
+  alwaysZeroInterestSetter: IDolomiteInterestSetter;
+  linearStepFunction6L94UInterestSetter: IDolomiteInterestSetter;
+  linearStepFunction8L92UInterestSetter: IDolomiteInterestSetter;
+  linearStepFunction14L86UInterestSetter: IDolomiteInterestSetter;
+}
+
 export interface JonesEcosystem {
   glpAdapter: IJonesGLPAdapter;
   glpVaultRouter: IJonesGLPVaultRouter;
   whitelistController: IJonesWhitelistController;
   usdcReceiptToken: IERC4626;
   jUSDC: IERC4626;
+  jUSDCFarm: IJonesUSDCFarm;
   admin: SignerWithAddress;
+  jonesWethV3Pool: IAlgebraV3Pool;
   live: {
     jUSDCIsolationModeFactory: JonesUSDCIsolationModeVaultFactory;
     jonesUSDCRegistry: IJonesUSDCRegistry;
+    jonesUSDCRegistryProxy: RegistryProxy;
   };
+}
+
+export interface LiquidityMiningEcosystem {
+  oArbVester: VesterImplementationV1;
+  oArbVesterProxy: VesterProxy;
 }
 
 export interface OdosEcosystem {
@@ -324,17 +416,40 @@ export interface ParaswapEcosystem {
 
 export interface PendleEcosystem {
   pendleRouter: IPendleRouter;
-  ptGlpMarket: IPendlePtMarket;
-  ptGlpToken: IPendlePtToken;
-  ptOracle: IPendlePtOracle;
-  syGlpToken: IPendleSyToken;
-  ytGlpToken: IPendleYtToken;
-  live: {
-    pendleGLP2024Registry: IPendleGLPRegistry
-    pendleGLP2024RegistryProxy: RegistryProxy
-    ptGlpIsolationModeFactory: PendlePtGLP2024IsolationModeVaultFactory;
-    ytGlpIsolationModeFactory: PendleYtGLP2024IsolationModeVaultFactory;
+  glpMar2024: {
+    pendleRegistry: IPendleGLPRegistry;
+    pendleRegistryProxy: RegistryProxy;
+    ptGlpMarket: IPendlePtMarket;
+    ptGlpToken: IPendlePtToken;
+    ptOracle: IPendlePtOracle;
+    ytGlpToken: IPendleYtToken;
+    dPtGlp2024: PendlePtGLP2024IsolationModeVaultFactory;
+    dYtGlp2024: PendleYtGLP2024IsolationModeVaultFactory;
   };
+  rEthJun2025: {
+    dPtREthJun2025: PendlePtIsolationModeVaultFactory;
+    pendleRegistry: IPendleRegistry;
+    ptOracle: IPendlePtOracle;
+    ptREthMarket: IPendlePtMarket;
+    ptREthToken: IPendlePtToken;
+  };
+  wstEthJun2024: {
+    dPtWstEthJun2024: PendlePtIsolationModeVaultFactory;
+    pendleRegistry: IPendleRegistry;
+    ptOracle: IPendlePtOracle;
+    ptWstEthMarket: IPendlePtMarket;
+    ptWstEthToken: IPendlePtToken;
+  };
+  wstEthJun2025: {
+    dPtWstEthJun2025: PendlePtIsolationModeVaultFactory;
+    pendleRegistry: IPendleRegistry;
+    ptOracle: IPendlePtOracle;
+    ptWstEthMarket: IPendlePtMarket;
+    ptWstEthToken: IPendlePtToken;
+  };
+  syGlpToken: IPendleSyToken;
+  syREthToken: IPendleSyToken;
+  syWstEthToken: IPendleSyToken;
 }
 
 export interface PlutusEcosystem {
@@ -351,6 +466,10 @@ export interface PlutusEcosystem {
     plvGlpIsolationModeUnwrapperTraderV1: PlutusVaultGLPIsolationModeUnwrapperTraderV1;
     plvGlpIsolationModeWrapperTraderV1: PlutusVaultGLPIsolationModeWrapperTraderV1;
   };
+}
+
+export interface PremiaEcosystem {
+  premiaWethV3Pool: IAlgebraV3Pool;
 }
 
 export interface TestEcosystem {
@@ -387,21 +506,27 @@ export interface CoreProtocol {
   /// Contracts and Ecosystems
   /// =========================
   abraEcosystem: AbraEcosystem | undefined;
-  alwaysZeroInterestSetter: IDolomiteInterestSetter;
+  arbEcosystem: ArbEcosystem | undefined;
   atlasEcosystem: AtlasEcosystem | undefined;
   borrowPositionProxyV2: IBorrowPositionProxyV2;
+  camelotEcosystem: CamelotEcosystem | undefined;
   chainlinkPriceOracleOld: IChainlinkPriceOracleOld | undefined;
+  chainlinkPriceOracle: IChainlinkPriceOracle | undefined;
   chainlinkRegistry: IChainlinkRegistry | undefined;
+  delayedMultiSig: IPartiallyDelayedMultiSig;
   depositWithdrawalProxy: IDepositWithdrawalProxy;
   dolomiteAmmFactory: IDolomiteAmmFactory;
   dolomiteAmmRouterProxy: IDolomiteAmmRouterProxy;
   dolomiteMargin: IDolomiteMargin;
   dolomiteRegistry: IDolomiteRegistry;
   dolomiteRegistryProxy: RegistryProxy;
+  eventEmitterRegistry: IEventEmitterRegistry | undefined;
+  eventEmitterRegistryProxy: RegistryProxy | undefined;
   expiry: IExpiry;
   genericTraderProxy: IGenericTraderProxyV1 | undefined;
   gmxEcosystem: GmxEcosystem | undefined;
   gmxEcosystemV2: GmxEcosystemV2 | undefined;
+  interestSetters: InterestSetters;
   jonesEcosystem: JonesEcosystem | undefined;
   liquidatorAssetRegistry: ILiquidatorAssetRegistry;
   liquidatorProxyV1: ILiquidatorProxyV1;
@@ -409,12 +534,15 @@ export interface CoreProtocol {
   liquidatorProxyV2: ILiquidatorProxyV2WithExternalLiquidity | undefined;
   liquidatorProxyV3: ILiquidatorProxyV3WithLiquidityToken | undefined;
   liquidatorProxyV4: ILiquidatorProxyV4WithGenericTrader;
+  liquidityMiningEcosystem: LiquidityMiningEcosystem | undefined;
   odosEcosystem: OdosEcosystem | undefined;
   paraswapEcosystem: ParaswapEcosystem | undefined;
   paraswapTrader: ParaswapAggregatorTrader | undefined;
   pendleEcosystem: PendleEcosystem | undefined;
   plutusEcosystem: PlutusEcosystem | undefined;
+  premiaEcosystem: PremiaEcosystem | undefined;
   testEcosystem: TestEcosystem | undefined;
+  tokenVaultActionsLibraries: Record<string, string> | undefined;
   umamiEcosystem: UmamiEcosystem | undefined;
   /// =========================
   /// Markets and Tokens
@@ -423,39 +551,80 @@ export interface CoreProtocol {
    * A mapping from token's symbol to its market ID
    */
   marketIds: {
+    arb: BigNumberish | undefined;
     dai: BigNumberish | undefined;
+    dArb: BigNumberish | undefined;
     dfsGlp: BigNumberish | undefined;
+    dGmx: BigNumberish | undefined;
     djUSDC: BigNumberish | undefined;
     dplvGlp: BigNumberish | undefined;
     dPtGlp: BigNumberish | undefined;
+    dPtREthJun2025: BigNumberish | undefined;
+    dPtWstEthJun2024: BigNumberish | undefined;
+    dPtWstEthJun2025: BigNumberish | undefined;
+    dpx: BigNumberish | undefined;
     dYtGlp: BigNumberish | undefined;
+    grail: BigNumberish | undefined;
+    jones: BigNumberish | undefined;
     link: BigNumberish;
+    magic: BigNumberish | undefined;
     magicGlp: BigNumberish | undefined;
     mim: BigNumberish | undefined;
     nativeUsdc: BigNumberish | undefined;
+    premia: BigNumberish | undefined;
+    rEth: BigNumberish | undefined;
+    radiant: BigNumberish | undefined;
+    pendle: BigNumberish | undefined;
     usdc: BigNumberish;
     usdt: BigNumberish | undefined;
     wbtc: BigNumberish;
     weth: BigNumberish;
+    wstEth: BigNumberish | undefined;
   };
   apiTokens: {
     usdc: ApiToken;
     weth: ApiToken;
   };
   tokens: {
+    arb: IERC20 | undefined;
+    dai: IERC20;
+    dArb: IERC20 | undefined;
     dfsGlp: IERC20 | undefined;
+    dGmx: IERC20 | undefined;
     dPtGlp: IERC20 | undefined;
+    dPtREthJun2025: IERC20 | undefined;
+    dPtWstEthJun2024: IERC20 | undefined;
+    dPtWstEthJun2025: IERC20 | undefined;
+    dpx: IERC20 | undefined;
     dYtGlp: IERC20 | undefined;
+    gmx: IERC20 | undefined;
+    grail: IERC20 | undefined;
+    jones: IERC20 | undefined;
     link: IERC20;
+    magic: IERC20 | undefined;
     nativeUsdc: IERC20 | undefined;
+    premia: IERC20 | undefined;
+    rEth: IERC20 | undefined;
+    radiant: IERC20 | undefined;
+    pendle: IERC20 | undefined;
+    size: IERC20 | undefined;
+    stEth: IERC20 | undefined;
     usdc: IERC20;
     wbtc: IERC20;
     weth: IWETH;
+    wstEth: IERC20 | undefined;
   };
 }
 
 export async function disableInterestAccrual(core: CoreProtocol, marketId: BigNumberish) {
-  return core.dolomiteMargin.ownerSetInterestSetter(marketId, core.alwaysZeroInterestSetter.address);
+  return core.dolomiteMargin.ownerSetInterestSetter(marketId, core.interestSetters.alwaysZeroInterestSetter.address);
+}
+
+export async function enableInterestAccrual(core: CoreProtocol, marketId: BigNumberish) {
+  return core.dolomiteMargin.ownerSetInterestSetter(
+    marketId,
+    core.interestSetters.linearStepFunction8L92UInterestSetter.address,
+  );
 }
 
 export async function setupWETHBalance(
@@ -466,6 +635,30 @@ export async function setupWETHBalance(
 ) {
   await core.tokens.weth.connect(signer).deposit({ value: amount });
   await core.tokens.weth.connect(signer).approve(spender.address, ethers.constants.MaxUint256);
+}
+
+export async function setupARBBalance(
+  core: CoreProtocol,
+  signer: SignerWithAddress,
+  amount: BigNumberish,
+  spender: { address: string },
+) {
+  const whaleAddress = '0xf3fc178157fb3c87548baa86f9d24ba38e649b58'; // ARB Treasury
+  const whaleSigner = await impersonate(whaleAddress, true);
+  await core.tokens.arb!.connect(whaleSigner).transfer(signer.address, amount);
+  await core.tokens.arb!.connect(signer).approve(spender.address, ethers.constants.MaxUint256);
+}
+
+export async function setupDAIBalance(
+  core: CoreProtocol,
+  signer: SignerWithAddress,
+  amount: BigNumberish,
+  spender: { address: string },
+) {
+  const whaleAddress = '0x489ee077994b6658eafa855c308275ead8097c4a'; // GMX Vault
+  const whaleSigner = await impersonate(whaleAddress, true);
+  await core.tokens.dai.connect(whaleSigner).transfer(signer.address, amount);
+  await core.tokens.dai.connect(signer).approve(spender.address, ethers.constants.MaxUint256);
 }
 
 export async function setupNativeUSDCBalance(
@@ -513,8 +706,32 @@ export async function setupGMXBalance(
 ) {
   const whaleAddress = '0x80a9ae39310abf666a87c743d6ebbd0e8c42158e'; // Uniswap V3 GMX/ETH pool
   const whaleSigner = await impersonate(whaleAddress, true);
-  await core.gmxEcosystem?.gmx.connect(whaleSigner).transfer(signer.address, amount);
-  await core.gmxEcosystem?.gmx.connect(signer).approve(spender.address, ethers.constants.MaxUint256);
+  await core.tokens.gmx!.connect(whaleSigner).transfer(signer.address, amount);
+  await core.tokens.gmx!.connect(signer).approve(spender.address, ethers.constants.MaxUint256);
+}
+
+export async function setupRETHBalance(
+  core: CoreProtocol,
+  signer: SignerWithAddress,
+  amount: BigNumberish,
+  spender: { address: string },
+) {
+  const whaleAddress = '0xba12222222228d8ba445958a75a0704d566bf2c8'; // Balancer Vault
+  const whaleSigner = await impersonate(whaleAddress, true);
+  await core.tokens.rEth!.connect(whaleSigner).transfer(signer.address, amount);
+  await core.tokens.rEth!.connect(signer).approve(spender.address, ethers.constants.MaxUint256);
+}
+
+export async function setupWstETHBalance(
+  core: CoreProtocol,
+  signer: SignerWithAddress,
+  amount: BigNumberish,
+  spender: { address: string },
+) {
+  const whaleAddress = '0xba12222222228d8ba445958a75a0704d566bf2c8'; // Balancer Vault
+  const whaleSigner = await impersonate(whaleAddress, true);
+  await core.tokens.wstEth!.connect(whaleSigner).transfer(signer.address, amount);
+  await core.tokens.wstEth!.connect(signer).approve(spender.address, ethers.constants.MaxUint256);
 }
 
 export function setupUserVaultProxy<T extends BaseContract>(
@@ -533,13 +750,15 @@ export function getDefaultCoreProtocolConfig(network: Network): CoreProtocolConf
   return {
     network,
     blockNumber: NETWORK_TO_DEFAULT_BLOCK_NUMBER_MAP[network],
+    networkNumber: parseInt(network, 10),
   };
 }
 
 export function getDefaultCoreProtocolConfigForGmxV2(): CoreProtocolConfig {
   return {
     network: Network.ArbitrumOne,
-    blockNumber: 131_050_900,
+    networkNumber: parseInt(Network.ArbitrumOne, 10),
+    blockNumber: 164_788_000,
   };
 }
 
@@ -564,11 +783,6 @@ export async function setupCoreProtocol(
     hhUser1,
   );
 
-  const alwaysZeroInterestSetter = IDolomiteInterestSetter__factory.connect(
-    ALWAYS_ZERO_INTEREST_SETTER_MAP[config.network],
-    governance,
-  );
-
   const borrowPositionProxyV2 = IBorrowPositionProxyV2__factory.connect(
     BorrowPositionProxyV2Json.networks[config.network].address,
     governance,
@@ -580,9 +794,20 @@ export async function setupCoreProtocol(
     governance,
   );
 
+  const chainlinkPriceOracle = getContractOpt(
+    CHAINLINK_PRICE_ORACLE_MAP[config.network],
+    IChainlinkPriceOracle__factory.connect,
+    governance,
+  );
+
   const chainlinkRegistry = getContractOpt(
     CHAINLINK_REGISTRY_MAP[config.network],
     IChainlinkRegistry__factory.connect,
+    governance,
+  );
+
+  const delayedMultiSig = IPartiallyDelayedMultiSig__factory.connect(
+    await DOLOMITE_MARGIN.connect(hhUser1).owner(),
     governance,
   );
 
@@ -624,6 +849,18 @@ export async function setupCoreProtocol(
     dolomiteRegistryProxy = null as any;
   }
 
+  const eventEmitterRegistry = getContractOpt(
+    (Deployments.EventEmitterRegistryProxy as any)[config.network].address,
+    IEventEmitterRegistry__factory.connect,
+    governance,
+  );
+
+  const eventEmitterRegistryProxy = getContractOpt(
+    (Deployments.EventEmitterRegistryProxy as any)[config.network].address,
+    RegistryProxy__factory.connect,
+    governance,
+  );
+
   const expiry = IExpiry__factory.connect(
     ExpiryJson.networks[config.network].address,
     governance,
@@ -663,7 +900,8 @@ export async function setupCoreProtocol(
   );
 
   const liquidatorProxyV4 = getContract(
-    (LiquidatorProxyV4WithGenericTraderJson.networks as any)[config.network].address,
+    // LiquidatorProxyV4WithGenericTraderJson.networks[config.network].address,
+    '0x34975624E992bF5c094EF0CF3344660f7AaB9CB3',
     ILiquidatorProxyV4WithGenericTrader__factory.connect,
     governance,
   );
@@ -675,35 +913,47 @@ export async function setupCoreProtocol(
   );
 
   const abraEcosystem = await createAbraEcosystem(config.network, hhUser1);
+  const arbEcosystem = await createArbEcosystem(config.network, hhUser1);
   const atlasEcosystem = await createAtlasEcosystem(config.network, hhUser1);
+  const camelotEcosystem = await createCamelotEcosystem(config.network, hhUser1);
   const gmxEcosystem = await createGmxEcosystem(config.network, hhUser1);
   const gmxEcosystemV2 = await createGmxEcosystemV2(config.network, hhUser1);
+  const interestSetters = await createInterestSetters(config.network, hhUser1);
   const jonesEcosystem = await createJonesEcosystem(config.network, hhUser1);
+  const liquidityMiningEcosystem = await createLiquidityMiningEcosystem(config.network, hhUser1);
   const odosEcosystem = await createOdosEcosystem(config.network, hhUser1);
   const paraswapEcosystem = await createParaswapEcosystem(config.network, hhUser1);
   const pendleEcosystem = await createPendleEcosystem(config.network, hhUser1);
   const plutusEcosystem = await createPlutusEcosystem(config.network, hhUser1);
+  const premiaEcosystem = await createPremiaEcosystem(config.network, hhUser1);
   const testEcosystem = await createTestEcosystem(dolomiteMargin, dolomiteRegistry, governance, hhUser1, config);
+  const tokenVaultActionsLibraries = await createTokenVaultActionsLibraries(config);
   const umamiEcosystem = await createUmamiEcosystem(config.network, hhUser1);
 
   return {
     abraEcosystem,
-    alwaysZeroInterestSetter,
+    arbEcosystem,
     atlasEcosystem,
     borrowPositionProxyV2,
+    camelotEcosystem,
     chainlinkRegistry,
     chainlinkPriceOracleOld,
+    chainlinkPriceOracle,
+    delayedMultiSig,
     depositWithdrawalProxy,
     dolomiteAmmFactory,
     dolomiteAmmRouterProxy,
     dolomiteMargin,
     dolomiteRegistry,
     dolomiteRegistryProxy,
+    eventEmitterRegistry,
+    eventEmitterRegistryProxy,
     expiry,
     genericTraderProxy,
     gmxEcosystem,
     gmxEcosystemV2,
     governance,
+    interestSetters,
     jonesEcosystem,
     liquidatorAssetRegistry,
     liquidatorProxyV1,
@@ -716,16 +966,20 @@ export async function setupCoreProtocol(
     hhUser3,
     hhUser4,
     hhUser5,
+    liquidityMiningEcosystem,
     odosEcosystem,
     paraswapEcosystem,
     paraswapTrader,
     pendleEcosystem,
     plutusEcosystem,
+    premiaEcosystem,
     testEcosystem,
+    tokenVaultActionsLibraries,
     umamiEcosystem,
     config: {
       blockNumber: config.blockNumber,
       network: config.network,
+      networkNumber: parseInt(config.network, 10),
     },
     apiTokens: {
       usdc: {
@@ -744,30 +998,64 @@ export async function setupCoreProtocol(
       },
     },
     marketIds: {
+      arb: ARB_MAP[config.network]?.marketId,
       dai: DAI_MAP[config.network]?.marketId,
+      dArb: D_ARB_MAP[config.network]?.marketId,
       dfsGlp: DFS_GLP_MAP[config.network]?.marketId,
+      dGmx: D_GMX_MAP[config.network]?.marketId,
       djUSDC: DJ_USDC[config.network]?.marketId,
       dplvGlp: DPLV_GLP_MAP[config.network]?.marketId,
       dPtGlp: DPT_GLP_2024_MAP[config.network]?.marketId,
+      dPtREthJun2025: DPT_R_ETH_JUN_2025_MAP[config.network]?.marketId,
+      dPtWstEthJun2024: DPT_WST_ETH_JUN_2024_MAP[config.network]?.marketId,
+      dPtWstEthJun2025: DPT_WST_ETH_JUN_2025_MAP[config.network]?.marketId,
+      dpx: DPX_MAP[config.network]?.marketId,
       dYtGlp: DYT_GLP_2024_MAP[config.network]?.marketId,
+      grail: GRAIL_MAP[config.network]?.marketId,
+      jones: JONES_MAP[config.network]?.marketId,
       link: LINK_MAP[config.network].marketId,
+      magic: MAGIC_MAP[config.network]?.marketId,
       magicGlp: MAGIC_GLP_MAP[config.network]?.marketId,
       mim: MIM_MAP[config.network]?.marketId,
       nativeUsdc: NATIVE_USDC_MAP[config.network]?.marketId,
+      premia: PREMIA_MAP[config.network]?.marketId,
+      rEth: RETH_MAP[config.network]?.marketId,
+      radiant: RDNT_MAP[config.network]?.marketId,
+      pendle: PENDLE_MAP[config.network]?.marketId,
       usdc: USDC_MAP[config.network].marketId,
       usdt: USDT_MAP[config.network]?.marketId,
       wbtc: WBTC_MAP[config.network].marketId,
       weth: WETH_MAP[config.network].marketId,
+      wstEth: WST_ETH_MAP[config.network]?.marketId,
     },
     tokens: {
+      arb: createIERC20Opt(ARB_MAP[config.network]?.address, hhUser1),
+      dai: IERC20__factory.connect(DAI_MAP[config.network].address, hhUser1),
+      dArb: createIERC20Opt(D_ARB_MAP[config.network]?.address, hhUser1),
       dfsGlp: createIERC20Opt(DFS_GLP_MAP[config.network]?.address, hhUser1),
+      dGmx: createIERC20Opt(D_GMX_MAP[config.network]?.address, hhUser1),
       dPtGlp: createIERC20Opt(DPT_GLP_2024_MAP[config.network]?.address, hhUser1),
+      dPtREthJun2025: createIERC20Opt(DPT_R_ETH_JUN_2025_MAP[config.network]?.address, hhUser1),
+      dPtWstEthJun2024: createIERC20Opt(DPT_WST_ETH_JUN_2024_MAP[config.network]?.address, hhUser1),
+      dPtWstEthJun2025: createIERC20Opt(DPT_WST_ETH_JUN_2025_MAP[config.network]?.address, hhUser1),
+      dpx: createIERC20Opt(DPX_MAP[config.network]?.address, hhUser1),
       dYtGlp: createIERC20Opt(DYT_GLP_2024_MAP[config.network]?.address, hhUser1),
+      gmx: createIERC20Opt(GMX_MAP[config.network]?.address, hhUser1),
+      grail: createIERC20Opt(GRAIL_MAP[config.network]?.address, hhUser1),
+      jones: createIERC20Opt(JONES_MAP[config.network]?.address, hhUser1),
       link: IERC20__factory.connect(LINK_MAP[config.network].address, hhUser1),
+      magic: createIERC20Opt(MAGIC_MAP[config.network]?.address, hhUser1),
       nativeUsdc: createIERC20Opt(NATIVE_USDC_MAP[config.network]?.address, hhUser1),
+      premia: createIERC20Opt(PREMIA_MAP[config.network]?.address, hhUser1),
+      pendle: createIERC20Opt(PENDLE_MAP[config.network]?.address, hhUser1),
+      rEth: createIERC20Opt(RETH_MAP[config.network]?.address, hhUser1),
+      radiant: createIERC20Opt(RDNT_MAP[config.network]?.address, hhUser1),
+      size: createIERC20Opt(SIZE_MAP[config.network]?.address, hhUser1),
+      stEth: createIERC20Opt(ST_ETH_MAP[config.network]?.address, hhUser1),
       usdc: IERC20__factory.connect(USDC_MAP[config.network].address, hhUser1),
       wbtc: IERC20__factory.connect(WBTC_MAP[config.network].address, hhUser1),
       weth: IWETH__factory.connect(WETH_MAP[config.network].address, hhUser1),
+      wstEth: createIERC20Opt(WST_ETH_MAP[config.network]?.address, hhUser1),
     },
   };
 }
@@ -846,6 +1134,19 @@ async function createTestEcosystem(
   };
 }
 
+async function createTokenVaultActionsLibraries(
+  config: CoreProtocolSetupConfig,
+): Promise<Record<string, string> | undefined> {
+  const libraryName = 'IsolationModeTokenVaultV1ActionsImpl';
+  if (!(deployments[libraryName] as any)[config.network]) {
+    return undefined;
+  }
+
+  return {
+    [libraryName]: (deployments[libraryName] as any)[config.network].address,
+  };
+}
+
 async function createAbraEcosystem(network: Network, signer: SignerWithAddress): Promise<AbraEcosystem | undefined> {
   if (!MAGIC_GLP_MAP[network]) {
     return undefined;
@@ -853,6 +1154,33 @@ async function createAbraEcosystem(network: Network, signer: SignerWithAddress):
 
   return {
     magicGlp: getContract(MAGIC_GLP_MAP[network]?.address as string, IERC4626__factory.connect, signer),
+  };
+}
+
+async function createArbEcosystem(network: Network, signer: SignerWithAddress): Promise<ArbEcosystem | undefined> {
+  if (!ARB_MAP[network]) {
+    return undefined;
+  }
+
+  return {
+    arb: getContract(ARB_MAP[network]?.address as string, IARB__factory.connect, signer),
+    live: {
+      dArb: getContract(
+        (Deployments.ARBIsolationModeVaultFactory as any)[network].address,
+        ARBIsolationModeVaultFactory__factory.connect,
+        signer,
+      ),
+      arbRegistry: getContract(
+        (Deployments.ARBRegistryProxy as any)[network].address,
+        ARBRegistry__factory.connect,
+        signer,
+      ),
+      arbRegistryProxy: getContract(
+        (Deployments.ARBRegistryProxy as any)[network].address,
+        RegistryProxy__factory.connect,
+        signer,
+      ),
+    }
   };
 }
 
@@ -866,17 +1194,46 @@ async function createAtlasEcosystem(network: Network, signer: SignerWithAddress)
   };
 }
 
-async function createGmxEcosystem(network: Network, signer: SignerWithAddress): Promise<GmxEcosystem | undefined> {
-  const esGmxDistributorAddress = ES_GMX_DISTRIBUTOR_MAP[network];
-  if (!esGmxDistributorAddress) {
+async function createCamelotEcosystem(
+  network: Network,
+  signer: SignerWithAddress,
+): Promise<CamelotEcosystem | undefined> {
+  if (!GRAIL_WETH_V3_POOL_MAP[network]) {
     return undefined;
   }
 
-  const esGmxDistributor = getContract(esGmxDistributorAddress, IEsGmxDistributor__factory.connect, signer);
-  const esGmxAdmin = await impersonateOrFallback(await esGmxDistributor.connect(signer).admin(), true, signer);
   return {
-    esGmx: getContract(ES_GMX_MAP[network] as string, IERC20__factory.connect, signer),
-    esGmxDistributor: esGmxDistributor.connect(esGmxAdmin),
+    dpxWethV3Pool: getContract(DPX_WETH_V3_POOL_MAP[network] as string, IAlgebraV3Pool__factory.connect, signer),
+    grailUsdcV3Pool: getContract(GRAIL_USDC_V3_POOL_MAP[network] as string, IAlgebraV3Pool__factory.connect, signer),
+    grailWethV3Pool: getContract(GRAIL_WETH_V3_POOL_MAP[network] as string, IAlgebraV3Pool__factory.connect, signer),
+    sizeWethV3Pool: getContract(SIZE_WETH_V3_POOL_MAP[network] as string, IAlgebraV3Pool__factory.connect, signer),
+  };
+}
+
+async function createGmxEcosystem(network: Network, signer: SignerWithAddress): Promise<GmxEcosystem | undefined> {
+  const esGmxDistributorAddressForGlp = ES_GMX_DISTRIBUTOR_FOR_STAKED_GLP_MAP[network];
+  const esGmxDistributorAddressForGmx = ES_GMX_DISTRIBUTOR_FOR_STAKED_GMX_MAP[network];
+  if (!esGmxDistributorAddressForGlp || !esGmxDistributorAddressForGmx) {
+    return undefined;
+  }
+
+  const esGmxDistributorForGlp = getContract(esGmxDistributorAddressForGlp, IEsGmxDistributor__factory.connect, signer);
+  const esGmxAdminForGlp = await impersonateOrFallback(
+    await esGmxDistributorForGlp.connect(signer).admin(),
+    true,
+    signer,
+  );
+  const esGmxDistributorForGmx = getContract(esGmxDistributorAddressForGmx, IEsGmxDistributor__factory.connect, signer);
+  const esGmxAdminForGmx = await impersonateOrFallback(
+    await esGmxDistributorForGmx.connect(signer).admin(),
+    true,
+    signer,
+  );
+  return {
+    bnGmx: getContract(BN_GMX_MAP[network] as string, IERC20__factory.connect, signer),
+    esGmx: getContract(ES_GMX_MAP[network] as string, IERC20Mintable__factory.connect, signer),
+    esGmxDistributorForStakedGlp: esGmxDistributorForGlp.connect(esGmxAdminForGlp),
+    esGmxDistributorForStakedGmx: esGmxDistributorForGmx.connect(esGmxAdminForGmx),
     fsGlp: getContract(FS_GLP_MAP[network] as string, IERC20__factory.connect, signer),
     glp: getContract(GLP_MAP[network] as string, IERC20__factory.connect, signer),
     glpManager: getContract(
@@ -889,7 +1246,7 @@ async function createGmxEcosystem(network: Network, signer: SignerWithAddress): 
       IGLPRewardsRouterV2__factory.connect,
       signer,
     ),
-    gmx: getContract(GMX_MAP[network] as string, IERC20__factory.connect, signer),
+    gmx: getContract(GMX_MAP[network]!.address, IERC20__factory.connect, signer),
     gmxRewardsRouter: getContract(
       GMX_REWARD_ROUTER_MAP[network] as string,
       IGmxRewardRouterV2__factory.connect,
@@ -902,9 +1259,14 @@ async function createGmxEcosystem(network: Network, signer: SignerWithAddress): 
     vGlp: getContract(V_GLP_MAP[network] as string, IGmxVester__factory.connect, signer),
     vGmx: getContract(V_GMX_MAP[network] as string, IGmxVester__factory.connect, signer),
     live: {
-      glpIsolationModeFactory: getContract(
+      dGlp: getContract(
         (Deployments.GLPIsolationModeVaultFactory as any)[network]?.address,
         IGLPIsolationModeVaultFactoryOld__factory.connect,
+        signer,
+      ),
+      dGmx: getContract(
+        (Deployments.GMXIsolationModeVaultFactory as any)[network]?.address,
+        IGMXIsolationModeVaultFactory__factory.connect,
         signer,
       ),
       glpIsolationModeUnwrapperTraderV1: getContract(
@@ -922,7 +1284,36 @@ async function createGmxEcosystem(network: Network, signer: SignerWithAddress): 
         IGmxRegistryV1__factory.connect,
         signer,
       ),
+      gmxRegistryProxy: getContract(
+        (Deployments.GmxRegistryProxy as any)[network]?.address,
+        RegistryProxy__factory.connect,
+        signer,
+      ),
     },
+  };
+}
+
+async function createInterestSetters(
+  network: Network,
+  signer: SignerWithAddress,
+): Promise<InterestSetters> {
+  return {
+    alwaysZeroInterestSetter: IDolomiteInterestSetter__factory.connect(
+      deployments.AlwaysZeroInterestSetter[network].address,
+      signer,
+    ),
+    linearStepFunction6L94UInterestSetter: IDolomiteInterestSetter__factory.connect(
+      deployments.Stablecoin6L94ULinearStepFunctionInterestSetter[network].address,
+      signer,
+    ),
+    linearStepFunction8L92UInterestSetter: IDolomiteInterestSetter__factory.connect(
+      deployments.Stablecoin8L92ULinearStepFunctionInterestSetter[network].address,
+      signer,
+    ),
+    linearStepFunction14L86UInterestSetter: IDolomiteInterestSetter__factory.connect(
+      deployments.Altcoin14L86ULinearStepFunctionInterestSetter[network].address,
+      signer,
+    ),
   };
 }
 
@@ -948,12 +1339,14 @@ async function createJonesEcosystem(network: Network, signer: SignerWithAddress)
       IJonesGLPVaultRouter__factory.connect,
       signer,
     ),
+    jonesWethV3Pool: getContract(JONES_WETH_V3_POOL_MAP[network] as string, IAlgebraV3Pool__factory.connect, signer),
+    jUSDC: getContract(JONES_JUSDC_MAP[network] as string, IERC4626__factory.connect, signer),
+    jUSDCFarm: getContract(JONES_JUSDC_FARM_MAP[network] as string, IJonesUSDCFarm__factory.connect, signer),
     usdcReceiptToken: getContract(
       JONES_JUSDC_RECEIPT_TOKEN_MAP[network] as string,
       IERC4626__factory.connect,
       signer,
     ),
-    jUSDC: getContract(JONES_JUSDC_MAP[network] as string, IERC4626__factory.connect, signer),
     whitelistController: whitelist,
     live: {
       jUSDCIsolationModeFactory: getContract(
@@ -966,11 +1359,20 @@ async function createJonesEcosystem(network: Network, signer: SignerWithAddress)
         IJonesUSDCRegistry__factory.connect,
         signer,
       ),
+      jonesUSDCRegistryProxy: getContract(
+        (Deployments.JonesUSDCRegistryProxy as any)[network]?.address,
+        RegistryProxy__factory.connect,
+        signer,
+      ),
     },
   };
 }
 
 async function createGmxEcosystemV2(network: Network, signer: SignerWithAddress): Promise<GmxEcosystemV2 | undefined> {
+  if (!GMX_DEPOSIT_HANDLER_MAP[network]) {
+    return undefined;
+  }
+
   return {
     gmxDepositHandler: getContract(
       GMX_DEPOSIT_HANDLER_MAP[network] as string,
@@ -1002,6 +1404,20 @@ async function createGmxEcosystemV2(network: Network, signer: SignerWithAddress)
       signer,
     ),
     gmxWithdrawalVault: await impersonateOrFallback(GMX_WITHDRAWAL_VAULT_MAP[network] as string, true, signer),
+  };
+}
+
+async function createLiquidityMiningEcosystem(
+  network: Network,
+  signer: SignerWithAddress,
+): Promise<LiquidityMiningEcosystem | undefined> {
+  if (network !== '42161') {
+    return undefined;
+  }
+
+  return {
+    oArbVester: VesterImplementationV1__factory.connect(deployments.VesterProxy[network].address, signer),
+    oArbVesterProxy: VesterProxy__factory.connect(deployments.VesterProxy[network].address, signer),
   };
 }
 
@@ -1047,53 +1463,144 @@ async function createPendleEcosystem(
       IPendleRouter__factory.connect,
       signer,
     ),
-    ptGlpMarket: getContract(
-      PENDLE_PT_GLP_2024_MARKET_MAP[network] as string,
-      IPendlePtMarket__factory.connect,
-      signer,
-    ),
-    ptGlpToken: getContract(
-      PENDLE_PT_GLP_2024_TOKEN_MAP[network] as string,
-      IPendlePtToken__factory.connect,
-      signer,
-    ),
-    ptOracle: getContract(
-      PENDLE_PT_ORACLE_MAP[network] as string,
-      IPendlePtOracle__factory.connect,
-      signer,
-    ),
-    syGlpToken: getContract(
-      PENDLE_SY_GLP_2024_TOKEN_MAP[network] as string,
-      IPendleSyToken__factory.connect,
-      signer,
-    ),
-    ytGlpToken: getContract(
-      PENDLE_YT_GLP_2024_TOKEN_MAP[network] as string,
-      IPendleYtToken__factory.connect,
-      signer,
-    ),
-    live: {
-      pendleGLP2024Registry: getContract(
+    glpMar2024: {
+      pendleRegistry: getContract(
         (Deployments.PendleGLP2024RegistryProxy as any)[network]?.address,
         IPendleGLPRegistry__factory.connect,
         signer,
       ),
-      pendleGLP2024RegistryProxy: getContract(
+      pendleRegistryProxy: getContract(
         (Deployments.PendleGLP2024RegistryProxy as any)[network]?.address,
         RegistryProxy__factory.connect,
         signer,
       ),
-      ptGlpIsolationModeFactory: getContract(
+      ptGlpMarket: getContract(
+        PENDLE_PT_GLP_2024_MARKET_MAP[network] as string,
+        IPendlePtMarket__factory.connect,
+        signer,
+      ),
+      ptGlpToken: getContract(
+        PENDLE_PT_GLP_2024_TOKEN_MAP[network] as string,
+        IPendlePtToken__factory.connect,
+        signer,
+      ),
+      ptOracle: getContract(
+        PENDLE_PT_ORACLE_MAP[network] as string,
+        IPendlePtOracle__factory.connect,
+        signer,
+      ),
+      ytGlpToken: getContract(
+        PENDLE_YT_GLP_2024_TOKEN_MAP[network] as string,
+        IPendleYtToken__factory.connect,
+        signer,
+      ),
+      dPtGlp2024: getContract(
         (Deployments.PendlePtGLP2024IsolationModeVaultFactory as any)[network]?.address,
         PendlePtGLP2024IsolationModeVaultFactory__factory.connect,
         signer,
       ),
-      ytGlpIsolationModeFactory: getContract(
+      dYtGlp2024: getContract(
         (Deployments.PendleYtGLP2024IsolationModeVaultFactory as any)[network]?.address,
         PendleYtGLP2024IsolationModeVaultFactory__factory.connect,
         signer,
       ),
     },
+    rEthJun2025: {
+      dPtREthJun2025: getContract(
+        deployments.PendlePtREthJun2025IsolationModeVaultFactory[network as '42161'].address,
+        PendlePtIsolationModeVaultFactory__factory.connect,
+        signer,
+      ),
+      pendleRegistry: getContract(
+        deployments.PendleREthJun2025RegistryProxy[network as '42161'].address,
+        IPendleRegistry__factory.connect,
+        signer,
+      ),
+      ptOracle: getContract(
+        PENDLE_PT_ORACLE_MAP[network] as string,
+        IPendlePtOracle__factory.connect,
+        signer,
+      ),
+      ptREthMarket: getContract(
+        PENDLE_PT_RETH_MARKET_MAP[network] as string,
+        IPendlePtMarket__factory.connect,
+        signer,
+      ),
+      ptREthToken: getContract(
+        PENDLE_PT_RETH_TOKEN_MAP[network] as string,
+        IPendlePtToken__factory.connect,
+        signer,
+      ),
+    },
+    wstEthJun2024: {
+      dPtWstEthJun2024: getContract(
+        deployments.PendlePtWstEthJun2024IsolationModeVaultFactory[network as '42161'].address,
+        PendlePtIsolationModeVaultFactory__factory.connect,
+        signer,
+      ),
+      pendleRegistry: getContract(
+        deployments.PendleWstEthJun2024RegistryProxy[network as '42161'].address,
+        IPendleRegistry__factory.connect,
+        signer,
+      ),
+      ptOracle: getContract(
+        PENDLE_PT_ORACLE_MAP[network] as string,
+        IPendlePtOracle__factory.connect,
+        signer,
+      ),
+      ptWstEthMarket: getContract(
+        PENDLE_PT_WST_ETH_2024_MARKET_MAP[network] as string,
+        IPendlePtMarket__factory.connect,
+        signer,
+      ),
+      ptWstEthToken: getContract(
+        PENDLE_PT_WST_ETH_2024_TOKEN_MAP[network] as string,
+        IPendlePtToken__factory.connect,
+        signer,
+      ),
+    },
+    wstEthJun2025: {
+      dPtWstEthJun2025: getContract(
+        deployments.PendlePtWstEthJun2025IsolationModeVaultFactory[network as '42161'].address,
+        PendlePtIsolationModeVaultFactory__factory.connect,
+        signer,
+      ),
+      pendleRegistry: getContract(
+        deployments.PendleWstEthJun2025RegistryProxy[network as '42161'].address,
+        IPendleRegistry__factory.connect,
+        signer,
+      ),
+      ptOracle: getContract(
+        PENDLE_PT_ORACLE_MAP[network] as string,
+        IPendlePtOracle__factory.connect,
+        signer,
+      ),
+      ptWstEthMarket: getContract(
+        PENDLE_PT_WST_ETH_2025_MARKET_MAP[network] as string,
+        IPendlePtMarket__factory.connect,
+        signer,
+      ),
+      ptWstEthToken: getContract(
+        PENDLE_PT_WST_ETH_2025_TOKEN_MAP[network] as string,
+        IPendlePtToken__factory.connect,
+        signer,
+      ),
+    },
+    syGlpToken: getContract(
+      PENDLE_SY_GLP_TOKEN_MAP[network] as string,
+      IPendleSyToken__factory.connect,
+      signer,
+    ),
+    syREthToken: getContract(
+      PENDLE_SY_RETH_TOKEN_MAP[network] as string,
+      IPendleSyToken__factory.connect,
+      signer,
+    ),
+    syWstEthToken: getContract(
+      PENDLE_SY_WST_ETH_TOKEN_MAP[network] as string,
+      IPendleSyToken__factory.connect,
+      signer,
+    ),
   };
 }
 
@@ -1152,6 +1659,19 @@ async function createPlutusEcosystem(
         signer,
       ),
     },
+  };
+}
+
+async function createPremiaEcosystem(
+  network: Network,
+  signer: SignerWithAddress,
+): Promise<PremiaEcosystem | undefined> {
+  if (!PREMIA_WETH_V3_POOL_MAP[network]) {
+    return undefined;
+  }
+
+  return {
+    premiaWethV3Pool: getContract(PREMIA_WETH_V3_POOL_MAP[network] as string, IAlgebraV3Pool__factory.connect, signer),
   };
 }
 

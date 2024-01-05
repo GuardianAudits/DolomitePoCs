@@ -21,11 +21,12 @@
 pragma solidity ^0.8.9;
 
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import { IDolomitePriceOracle } from "../../protocol/interfaces/IDolomitePriceOracle.sol";
 import { Require } from "../../protocol/lib/Require.sol";
 import { OnlyDolomiteMarginForUpgradeable } from "../helpers/OnlyDolomiteMarginForUpgradeable.sol";
 import { ProxyContractHelpers } from "../helpers/ProxyContractHelpers.sol";
 import { IDolomiteRegistry } from "../interfaces/IDolomiteRegistry.sol";
-import { IEventEmitterRegistry } from "../interfaces/IEventEmitter.sol";
+import { IEventEmitterRegistry } from "../interfaces/IEventEmitterRegistry.sol";
 import { IExpiry } from "../interfaces/IExpiry.sol";
 import { IGenericTraderProxyV1 } from "../interfaces/IGenericTraderProxyV1.sol";
 import { ILiquidatorAssetRegistry } from "../interfaces/ILiquidatorAssetRegistry.sol";
@@ -52,6 +53,7 @@ contract DolomiteRegistryImplementation is
     bytes32 private constant _SLIPPAGE_TOLERANCE_FOR_PAUSE_SENTINEL_SLOT = bytes32(uint256(keccak256("eip1967.proxy.slippageToleranceForPauseSentinel")) - 1); // solhint-disable-line max-line-length
     bytes32 private constant _LIQUIDATOR_ASSET_REGISTRY_SLOT = bytes32(uint256(keccak256("eip1967.proxy.liquidatorAssetRegistry")) - 1); // solhint-disable-line max-line-length
     bytes32 private constant _EVENT_EMITTER_SLOT = bytes32(uint256(keccak256("eip1967.proxy.eventEmitter")) - 1);
+    bytes32 private constant _CHAINLINK_PRICE_ORACLE_SLOT = bytes32(uint256(keccak256("eip1967.proxy.chainlinkPriceOracle")) - 1); // solhint-disable-line max-line-length
 
     // ==================== Constructor ====================
 
@@ -107,6 +109,14 @@ contract DolomiteRegistryImplementation is
         _ownerSetEventEmitter(_eventEmitter);
     }
 
+    function ownerSetChainlinkPriceOracle(
+        address _chainlinkPriceOracle
+    )
+    external
+    onlyDolomiteMarginOwner(msg.sender) {
+        _ownerSetChainlinkPriceOracle(_chainlinkPriceOracle);
+    }
+
     // ========================== View Functions =========================
 
     function genericTraderProxy() external view returns (IGenericTraderProxyV1) {
@@ -129,6 +139,10 @@ contract DolomiteRegistryImplementation is
         return IEventEmitterRegistry(_getAddress(_EVENT_EMITTER_SLOT));
     }
 
+    function chainlinkPriceOracle() external view returns (IDolomitePriceOracle) {
+        return IDolomitePriceOracle(_getAddress(_CHAINLINK_PRICE_ORACLE_SLOT));
+    }
+
     function slippageToleranceForPauseSentinelBase() external pure returns (uint256) {
         return 1e18;
     }
@@ -143,12 +157,12 @@ contract DolomiteRegistryImplementation is
             _FILE,
             "Invalid genericTraderProxy"
         );
-        bytes memory returnData = ValidationLib.callAndCheckSuccess(
-            _genericTraderProxy,
-            IGenericTraderProxyV1(_genericTraderProxy).MARGIN_POSITION_REGISTRY.selector,
-            bytes("")
-        );
-        abi.decode(returnData, (address));
+         bytes memory returnData = ValidationLib.callAndCheckSuccess(
+             _genericTraderProxy,
+             IGenericTraderProxyV1(_genericTraderProxy).EXPIRY.selector,
+             bytes("")
+         );
+         abi.decode(returnData, (address));
 
         _setAddress(_GENERIC_TRADER_PROXY_SLOT, _genericTraderProxy);
         emit GenericTraderProxySet(_genericTraderProxy);
@@ -216,5 +230,18 @@ contract DolomiteRegistryImplementation is
 
         _setAddress(_EVENT_EMITTER_SLOT, _eventEmitter);
         emit EventEmitterSet(_eventEmitter);
+    }
+
+    function _ownerSetChainlinkPriceOracle(
+        address _chainlinkPriceOracle
+    ) internal {
+        Require.that(
+            _chainlinkPriceOracle != address(0),
+            _FILE,
+            "Invalid chainlinkPriceOracle"
+        );
+
+        _setAddress(_CHAINLINK_PRICE_ORACLE_SLOT, _chainlinkPriceOracle);
+        emit ChainlinkPriceOracleSet(_chainlinkPriceOracle);
     }
 }

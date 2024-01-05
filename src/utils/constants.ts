@@ -13,17 +13,33 @@ interface TokenWithMarketId {
   marketId: number;
 }
 
+export const ARB_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x912CE59144191C1204E64559FE8253a0e49E6548',
+    marketId: 7,
+  },
+  [Network.ArbitrumGoerli]: {
+    address: '0xF861378B543525ae0C47d33C90C954Dc774Ac1F9',
+    marketId: 7,
+  },
+};
+
 export const CHAINLINK_PRICE_ORACLE_OLD_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0xeA3Fe12d8CC2E87f99e985EE271971C808006531',
   [Network.ArbitrumGoerli]: '0x1BEC3A1331d36e57Ef3b1A8ccf1946c8cfe3Fef0',
 };
 
-export const CHAINLINK_REGISTRY_MAP: Record<Network, string | undefined> = {
-  [Network.ArbitrumOne]: '0x75c0530885F385721fddA23C539AF3701d6183D4',
-  [Network.ArbitrumGoerli]: '0x291093864bafc9aA517eF90ce954dD7D95D68C80',
+export const CHAINLINK_PRICE_ORACLE_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0xA07e80C08D8bae7fFA3e46534eaBdBb6Ca98da1D',
+  [Network.ArbitrumGoerli]: undefined,
 };
 
-export const DAI_MAP: Record<Network, TokenWithMarketId | undefined> = {
+export const CHAINLINK_REGISTRY_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x37D9dC70bfcd8BC77Ec2858836B923c560E891D1',
+  [Network.ArbitrumGoerli]: '0xaB9718E1DC7BD61Bd3440Fb771CC23DA0C0181a1',
+};
+
+export const DAI_MAP: Record<Network, TokenWithMarketId> = {
   [Network.ArbitrumOne]: {
     address: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
     marketId: 1,
@@ -34,10 +50,26 @@ export const DAI_MAP: Record<Network, TokenWithMarketId | undefined> = {
   },
 };
 
+export const D_ARB_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x1d9E10B161aE54FEAbe1E3F71f658cac3468e3C3',
+    marketId: 28,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
 export const DFS_GLP_MAP: Record<Network, TokenWithMarketId | undefined> = {
   [Network.ArbitrumOne]: {
     address: '0x34DF4E8062A8C8Ae97E3382B452bd7BF60542698',
     marketId: 6,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const D_GMX_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x790FF506ac24b03A21F3d0019227447AE2B55Ca5',
+    marketId: 30,
   },
   [Network.ArbitrumGoerli]: undefined,
 };
@@ -66,10 +98,58 @@ export const DPT_GLP_2024_MAP: Record<Network, TokenWithMarketId | undefined> = 
   [Network.ArbitrumGoerli]: undefined,
 };
 
+export const DPT_R_ETH_JUN_2025_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0xC9375EF7635fe556F613AB528C9a2ed946BD075d',
+    marketId: 22,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const DPT_WST_ETH_JUN_2024_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x1bE165864C918527F2e3e131c2ADc4da9B8c619B',
+    marketId: 23,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const DPT_WST_ETH_JUN_2025_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0xfeF14a3A1Ec46D4eB18c784BC1E61297FC68bbc8',
+    marketId: 24,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const DPX_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x6C2C06790b3E3E3c38e12Ee22F8183b37a13EE55',
+    marketId: 20,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
 export const DYT_GLP_2024_MAP: Record<Network, TokenWithMarketId | undefined> = {
   [Network.ArbitrumOne]: {
     address: '0x851729Df6C39BDB6E92721f2ADf750023D967eE8',
     marketId: 16,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const GRAIL_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8',
+    marketId: 18,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const JONES_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x10393c20975cF177a3513071bC110f7962CD67da',
+    marketId: 999,
   },
   [Network.ArbitrumGoerli]: undefined,
 };
@@ -83,6 +163,14 @@ export const LINK_MAP: Record<Network, TokenWithMarketId> = {
     address: '0x2d3B3F17d6694d5AA643Cb89A82Ac9214a41536d',
     marketId: 3,
   },
+};
+
+export const MAGIC_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x539bdE0d7Dbd336b79148AA742883198BBF60342',
+    marketId: 19,
+  },
+  [Network.ArbitrumGoerli]: undefined,
 };
 
 export const MAGIC_GLP_MAP: Record<Network, TokenWithMarketId | undefined> = {
@@ -101,6 +189,67 @@ export const MIM_MAP: Record<Network, TokenWithMarketId | undefined> = {
   [Network.ArbitrumGoerli]: undefined,
 };
 
+export const NATIVE_USDC_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    marketId: 17,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8',
+    marketId: 21,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PREMIA_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x51fC0f6660482Ea73330E414eFd7808811a57Fa2',
+    marketId: 25,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const RDNT_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x3082CC23568eA640225c2467653dB90e9250AaA0',
+    marketId: 26,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const RETH_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8',
+    marketId: 15,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const SIZE_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x939727d85d99d0ac339bf1b76dfe30ca27c19067',
+    marketId: -1,
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const SIZE_WETH_V3_POOL_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x123d123c6f062f7f5a6e82c396b34f1929125bf3',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const ST_ETH_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
+    marketId: -1, // does not exist; purely here for the Chainlink oracle pairing
+  },
+  [Network.ArbitrumGoerli]: undefined,
+};
+
 export const USDC_MAP: Record<Network, TokenWithMarketId> = {
   [Network.ArbitrumOne]: {
     address: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
@@ -110,14 +259,6 @@ export const USDC_MAP: Record<Network, TokenWithMarketId> = {
     address: '0x7317eb743583250739862644cef74B982708eBB4',
     marketId: 2,
   },
-};
-
-export const NATIVE_USDC_MAP: Record<Network, TokenWithMarketId | undefined> = {
-  [Network.ArbitrumOne]: {
-    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    marketId: 17,
-  },
-  [Network.ArbitrumGoerli]: undefined,
 };
 
 export const USDT_MAP: Record<Network, TokenWithMarketId | undefined> = {
@@ -150,16 +291,29 @@ export const WETH_MAP: Record<Network, TokenWithMarketId> = {
   },
 };
 
-// ************************* External Addresses *************************
-
-export const ALWAYS_ZERO_INTEREST_SETTER_MAP: Record<Network, string> = {
-  [Network.ArbitrumOne]: '0x37b6fF70654EDfBdAA3c9a723fdAdF5844De2168',
-  [Network.ArbitrumGoerli]: '0x2536ef4105a6173683C7fFCE9547091960F6d939',
+export const WST_ETH_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0x5979D7b546E38E414F7E9822514be443A4800529',
+    marketId: 14,
+  },
+  [Network.ArbitrumGoerli]: undefined,
 };
+
+// ************************* External Addresses *************************
 
 export const ATLAS_SI_TOKEN_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: undefined,
   [Network.ArbitrumGoerli]: '0x10EB11cFf6Eb909528Dba768040a63Eb904261c2',
+};
+
+export const BN_GMX_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x35247165119B69A40edD5304969560D0ef486921',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const DPX_WETH_V3_POOL_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x59a327d948db1810324a04d69cbe9fe9884f8f28',
+  [Network.ArbitrumGoerli]: undefined,
 };
 
 export const ES_GMX_MAP: Record<Network, string | undefined> = {
@@ -167,8 +321,13 @@ export const ES_GMX_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumGoerli]: undefined,
 };
 
-export const ES_GMX_DISTRIBUTOR_MAP: Record<Network, string | undefined> = {
+export const ES_GMX_DISTRIBUTOR_FOR_STAKED_GLP_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0x60519b48ec4183a61ca2B8e37869E675FD203b34',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const ES_GMX_DISTRIBUTOR_FOR_STAKED_GMX_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x23208B91A98c7C1CD9FE63085BFf68311494F193',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -196,7 +355,7 @@ export const GLP_REWARD_ROUTER_MAP: Record<Network, string | undefined> = {
 };
 
 export const GMX_DEPOSIT_HANDLER_MAP: Record<Network, string | undefined> = {
-  [Network.ArbitrumOne]: '0xD9AebEA68DE4b4A3B58833e1bc2AEB9682883AB0',
+  [Network.ArbitrumOne]: '0x9Dc4f12Eb2d8405b499FB5B8AF79a5f64aB8a457',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -211,7 +370,7 @@ export const GMX_DATASTORE_MAP: Record<Network, string | undefined> = {
 };
 
 export const GMX_EXCHANGE_ROUTER_MAP: Record<Network, string | undefined> = {
-  [Network.ArbitrumOne]: '0x3B070aA6847bd0fB56eFAdB351f49BBb7619dbc2',
+  [Network.ArbitrumOne]: '0x7C68C7866A64FA2160F78EEaE12217FFbf871fa8',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -222,6 +381,11 @@ export const GMX_EXECUTOR_MAP: Record<Network, string | undefined> = {
 
 export const GMX_ETH_USD_MARKET_TOKEN_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0x70d95587d40A2caf56bd97485aB3Eec10Bee6336',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const GMX_GOV_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0xe7E740Fa40CA16b15B621B49de8E9F0D69CF4858',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -240,8 +404,11 @@ export const GMX_ROUTER_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumGoerli]: undefined,
 };
 
-export const GMX_MAP: Record<Network, string | undefined> = {
-  [Network.ArbitrumOne]: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a',
+export const GMX_MAP: Record<Network, TokenWithMarketId | undefined> = {
+  [Network.ArbitrumOne]: {
+    address: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a',
+    marketId: 999, // TODO: fix me
+  },
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -251,12 +418,22 @@ export const GMX_VAULT_MAP: Record<Network, string | undefined> = {
 };
 
 export const GMX_WITHDRAWAL_HANDLER_MAP: Record<Network, string | undefined> = {
-  [Network.ArbitrumOne]: '0x79B99855676dB97e488F33CF52DaCF552102A950',
+  [Network.ArbitrumOne]: '0x9E32088F3c1a5EB38D32d1Ec6ba0bCBF499DC9ac',
   [Network.ArbitrumGoerli]: undefined,
 };
 
 export const GMX_WITHDRAWAL_VAULT_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0x0628d46b5d145f183adb6ef1f2c97ed1c4701c55',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const GRAIL_USDC_V3_POOL_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x8cc8093218bCaC8B1896A1EED4D925F6F6aB289F',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const GRAIL_WETH_V3_POOL_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x60451B6aC55E3C5F0f3aeE31519670EcC62DC28f',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -280,8 +457,18 @@ export const JONES_JUSDC_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumGoerli]: undefined,
 };
 
+export const JONES_JUSDC_FARM_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x0aEfaD19aA454bCc1B1Dd86e18A7d58D0a6FAC38',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
 export const JONES_JUSDC_RECEIPT_TOKEN_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0xa485a0bc44988B95245D5F20497CCaFF58a73E99',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const JONES_WETH_V3_POOL_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x0e878029D18cD7F630823439cf389d1601d9dbD9',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -320,8 +507,38 @@ export const PENDLE_PT_GLP_2024_TOKEN_MAP: Record<Network, string | undefined> =
   [Network.ArbitrumGoerli]: undefined,
 };
 
+export const PENDLE_PT_RETH_MARKET_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x14FbC760eFaF36781cB0eb3Cb255aD976117B9Bd',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_PT_RETH_TOKEN_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x685155D3BD593508Fe32Be39729810A591ED9c87',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_PT_WST_ETH_2024_MARKET_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0xFd8AeE8FCC10aac1897F8D5271d112810C79e022',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_PT_WST_ETH_2024_TOKEN_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x9741CAc1a22Ff3615FA074fD0B439975a5E137e9',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_PT_WST_ETH_2025_MARKET_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x08a152834de126d2ef83D612ff36e4523FD0017F',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_PT_WST_ETH_2025_TOKEN_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x1255638EFeca62e12E344E0b6B22ea853eC6e2c7',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
 export const PENDLE_PT_ORACLE_MAP: Record<Network, string | undefined> = {
-  [Network.ArbitrumOne]: '0x428f2f93afAc3F96B0DE59854038c585e06165C8',
+  [Network.ArbitrumOne]: '0x7e16e4253CE4a1C96422a9567B23b4b5Ebc207F1',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -330,8 +547,18 @@ export const PENDLE_ROUTER_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumGoerli]: undefined,
 };
 
-export const PENDLE_SY_GLP_2024_TOKEN_MAP: Record<Network, string | undefined> = {
+export const PENDLE_SY_GLP_TOKEN_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0x2066a650AF4b6895f72E618587Aad5e8120B7790',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_SY_RETH_TOKEN_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0xc0Cf4b266bE5B3229C49590B59E67A09c15b22f4',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PENDLE_SY_WST_ETH_TOKEN_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -357,6 +584,11 @@ export const PLV_GLP_FARM_MAP: Record<Network, string | undefined> = {
 
 export const PLV_GLP_ROUTER_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0xEAE85745232983CF117692a1CE2ECf3d19aDA683',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const PREMIA_WETH_V3_POOL_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0xc3e254E39c45c7886A12455cb8207c808486FAC3',
   [Network.ArbitrumGoerli]: undefined,
 };
 
@@ -426,5 +658,22 @@ export const V_GLP_MAP: Record<Network, string | undefined> = {
  */
 export const V_GMX_MAP: Record<Network, string | undefined> = {
   [Network.ArbitrumOne]: '0x199070DDfd1CFb69173aa2F7e20906F26B363004',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+// ************************* Chainlink *************************
+
+export const STETH_USD_CHAINLINK_FEED_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0x07c5b924399cc23c24a95c8743de4006a32b7f2a',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const STETH_ETH_CHAINLINK_FEED_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0xded2c52b75b24732e9107377b7ba93ec1ffa4baf',
+  [Network.ArbitrumGoerli]: undefined,
+};
+
+export const WSTETH_STETH_CHAINLINK_FEED_MAP: Record<Network, string | undefined> = {
+  [Network.ArbitrumOne]: '0xb1552c5e96b312d0bf8b554186f846c40614a540',
   [Network.ArbitrumGoerli]: undefined,
 };

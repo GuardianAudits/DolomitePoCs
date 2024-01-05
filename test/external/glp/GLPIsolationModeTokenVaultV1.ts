@@ -1,6 +1,8 @@
 import { ZERO_ADDRESS } from '@openzeppelin/upgrades/lib/utils/Addresses';
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
+import { parseEther } from 'ethers/lib/utils';
+import { GMX_GOV_MAP } from 'src/utils/constants';
 import {
   GLPIsolationModeTokenVaultV1,
   GLPIsolationModeTokenVaultV1__factory,
@@ -9,11 +11,14 @@ import {
   TestGLPIsolationModeTokenVaultV1__factory,
 } from '../../../src/types';
 import { AccountInfoStruct } from '../../../src/utils';
-import { createContractWithAbi } from '../../../src/utils/dolomite-utils';
 import { MAX_UINT_256_BI, Network, ONE_BI, ZERO_BI } from '../../../src/utils/no-deps-constants';
-import { revertToSnapshotAndCapture, snapshot, waitDays } from '../../utils';
+import { impersonate, revertToSnapshotAndCapture, snapshot, waitDays } from '../../utils';
 import { expectThrow } from '../../utils/assertions';
-import { createGLPIsolationModeVaultFactory, createGmxRegistry } from '../../utils/ecosystem-token-utils/gmx';
+import {
+  createGLPIsolationModeVaultFactory,
+  createGmxRegistry,
+  createTestGLPIsolationModeTokenVaultV1,
+} from '../../utils/ecosystem-token-utils/gmx';
 import {
   CoreProtocol,
   setupCoreProtocol,
@@ -46,11 +51,7 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       blockNumber: DEFAULT_BLOCK_NUMBER_FOR_GLP_WITH_VESTING,
       network: Network.ArbitrumOne,
     });
-    const vaultImplementation = await createContractWithAbi<TestGLPIsolationModeTokenVaultV1>(
-      TestGLPIsolationModeTokenVaultV1__factory.abi,
-      TestGLPIsolationModeTokenVaultV1__factory.bytecode,
-      [],
-    );
+    const vaultImplementation = await createTestGLPIsolationModeTokenVaultV1();
     const gmxRegistry = await createGmxRegistry(core);
     factory = await createGLPIsolationModeVaultFactory(core, gmxRegistry, vaultImplementation);
 
@@ -86,7 +87,17 @@ describe('GLPIsolationModeTokenVaultV1', () => {
     expect(glpProtocolBalance.sign).to.eq(true);
     expect(glpProtocolBalance.value).to.eq(amountWei);
 
-    await core.gmxEcosystem!.esGmxDistributor.setTokensPerInterval('10333994708994708');
+    await core.gmxEcosystem!.esGmxDistributorForStakedGlp.setTokensPerInterval('10333994708994708');
+    await core.gmxEcosystem!.esGmxDistributorForStakedGmx.setTokensPerInterval('10333994708994708');
+    const gov = await impersonate(GMX_GOV_MAP[Network.ArbitrumOne]!, true);
+    await core.gmxEcosystem!.esGmx.connect(gov).mint(
+      core.gmxEcosystem!.esGmxDistributorForStakedGlp.address,
+      parseEther('100000000'),
+    );
+    await core.gmxEcosystem!.esGmx.connect(gov).mint(
+      core.gmxEcosystem!.esGmxDistributorForStakedGmx.address,
+      parseEther('100000000'),
+    );
 
     snapshotId = await snapshot();
   });
@@ -126,8 +137,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect((await core.gmxEcosystem!.sbfGmx.balanceOf(vault.address)).gte(gmxAmount)).to.eq(true);
       expect(await core.gmxEcosystem!.sbfGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
@@ -154,8 +165,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
       expect((await core.tokens.weth.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
@@ -175,8 +186,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       );
 
       // GMX rewards should be passed along to the vault owner if they're NOT staked
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect((await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect((await core.tokens.gmx!.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
     });
 
     it('should work when assets are claimed and staked', async () => {
@@ -195,8 +206,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       );
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
       expect((await core.tokens.weth.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
@@ -233,8 +244,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // GMX rewards should be passed along to the vault as sbfGMX if they're staked
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
       expect(sbfGmxBalanceAfter.gt(sbfGmxBalanceBefore)).to.eq(true);
     });
 
@@ -256,8 +267,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
       expect(await core.tokens.weth.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
@@ -284,8 +295,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
       expect(await core.tokens.weth.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
@@ -347,8 +358,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect((await core.gmxEcosystem!.sbfGmx.balanceOf(vault.address)).gte(gmxAmount)).to.eq(true);
       expect(await core.gmxEcosystem!.sbfGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
@@ -376,8 +387,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
       expect((await core.tokens.weth.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
@@ -398,8 +409,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       );
 
       // GMX rewards should be passed along to the vault owner if they're NOT staked
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect((await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect((await core.tokens.gmx!.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
     });
 
     it('should work when assets are claimed and staked', async () => {
@@ -419,8 +430,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       );
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
       expect((await core.tokens.weth.balanceOf(core.hhUser1.address)).gt(ZERO_BI)).to.eq(true);
@@ -458,8 +469,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // GMX rewards should be passed along to the vault as sbfGMX if they're staked
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
       expect(sbfGmxBalanceAfter.gt(sbfGmxBalanceBefore)).to.eq(true);
     });
 
@@ -482,8 +493,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       const account = { owner: core.hhUser1.address, number: accountNumber };
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
@@ -512,8 +523,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       expect(await core.gmxEcosystem!.esGmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       // The user has not vested any esGMX into GMX, so the balance should be 0
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(ZERO_BI);
 
       const account = { owner: core.hhUser1.address, number: accountNumber };
       expect(await core.tokens.weth.balanceOf(vault.address)).to.eq(ZERO_BI);
@@ -596,7 +607,7 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       await setupGMXBalance(core, core.hhUser1, gmxAmount, vault);
       await vault.stakeGmx(gmxAmount);
       await vault.unstakeGmx(gmxAmount);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(gmxAmount);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(gmxAmount);
       expect(await vault.gmxBalanceOf()).to.eq(ZERO_BI);
       expect(await core.gmxEcosystem!.sbfGmx.balanceOf(vault.address)).to.eq(ZERO_BI);
     });
@@ -683,8 +694,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       await vault.unvestGlp(true);
       expect((await vault.gmxBalanceOf()).eq(ZERO_BI)).to.eq(false);
       expect((await core.gmxEcosystem!.sbfGmx.balanceOf(vault.address)).eq(ZERO_BI)).to.eq(false);
-      expect((await core.gmxEcosystem!.gmx.balanceOf(vault.address))).to.eq(ZERO_BI);
-      expect((await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address))).to.eq(ZERO_BI);
+      expect((await core.tokens.gmx!.balanceOf(vault.address))).to.eq(ZERO_BI);
+      expect((await core.tokens.gmx!.balanceOf(core.hhUser1.address))).to.eq(ZERO_BI);
     });
 
     it('should work GLP is withdrawn', async () => {
@@ -695,8 +706,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       await vault.unvestGlp(false);
       expect(await vault.gmxBalanceOf()).to.eq(ZERO_BI);
       expect(await core.gmxEcosystem!.sbfGmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.eq(ZERO_BI);
-      expect((await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).eq(ZERO_BI)).to.eq(false);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.eq(ZERO_BI);
+      expect((await core.tokens.gmx!.balanceOf(core.hhUser1.address)).eq(ZERO_BI)).to.eq(false);
     });
 
     it('should fail when not called by vault owner', async () => {
@@ -763,7 +774,7 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       await vault.unvestGmx(false);
 
       expect(await vault.gmxBalanceOf()).to.eq(gmxAmount);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.eq(esGmxAmount);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.eq(esGmxAmount);
     });
 
     it('should fail when not called by vault owner', async () => {
@@ -816,7 +827,7 @@ describe('GLPIsolationModeTokenVaultV1', () => {
     });
 
     it('should fail when triggered more than once on the same vault', async () => {
-      await core.gmxEcosystem!.esGmxDistributor.setTokensPerInterval('0');
+      await core.gmxEcosystem!.esGmxDistributorForStakedGlp.setTokensPerInterval('0');
       const usdcAmount = BigNumber.from('100000000'); // 100 USDC
       await setupUSDCBalance(core, core.hhUser2, usdcAmount, core.gmxEcosystem!.glpManager);
       await core.gmxEcosystem!.glpRewardsRouter.connect(core.hhUser2).mintAndStakeGlp(
@@ -902,7 +913,7 @@ describe('GLPIsolationModeTokenVaultV1', () => {
     });
 
     it('should work when GLP needs to be un-vested', async () => {
-      expect(await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).to.equal(ZERO_BI);
+      expect(await core.tokens.gmx!.balanceOf(core.hhUser1.address)).to.equal(ZERO_BI);
       await doHandleRewardsWithWaitTime(30);
       const esGmxAmount = await core.gmxEcosystem!.esGmx.balanceOf(vault.address);
       await vault.vestGlp(esGmxAmount);
@@ -915,8 +926,8 @@ describe('GLPIsolationModeTokenVaultV1', () => {
       await vault.withdrawFromVaultForDolomiteMargin(accountNumber, amountWei);
       expect(await vault.underlyingBalanceOf()).to.equal(ZERO_BI);
       expect(await core.gmxEcosystem!.fsGlp.balanceOf(core.hhUser1.address)).to.equal(glpAmount);
-      expect(await core.gmxEcosystem!.gmx.balanceOf(vault.address)).to.equal(ZERO_BI);
-      expect((await core.gmxEcosystem!.gmx.balanceOf(core.hhUser1.address)).eq(ZERO_BI)).to.equal(false);
+      expect(await core.tokens.gmx!.balanceOf(vault.address)).to.equal(ZERO_BI);
+      expect((await core.tokens.gmx!.balanceOf(core.hhUser1.address)).eq(ZERO_BI)).to.equal(false);
     });
 
     it('should fail when not called by vault factory', async () => {
