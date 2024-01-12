@@ -21,13 +21,17 @@ pragma solidity ^0.8.9;
 
 import { IDolomiteMargin } from "../../../../protocol/interfaces/IDolomiteMargin.sol";
 import { IDolomiteStructs } from "../../../../protocol/interfaces/IDolomiteStructs.sol";
+import { BitsLib } from "../../../../protocol/lib/BitsLib.sol";
+import { DecimalLib } from "../../../../protocol/lib/DecimalLib.sol";
 import { Require } from "../../../../protocol/lib/Require.sol";
 import { TypesLib } from "../../../../protocol/lib/TypesLib.sol";
+import { BaseLiquidatorProxy } from "../../../general/BaseLiquidatorProxy.sol";
 import { IGenericTraderProxyV1 } from "../../../interfaces/IGenericTraderProxyV1.sol";
 import { IIsolationModeTokenVaultV1 } from "../../../interfaces/IIsolationModeTokenVaultV1.sol";
 import { IIsolationModeVaultFactory } from "../../../interfaces/IIsolationModeVaultFactory.sol";
 import { AccountActionLib } from "../../../lib/AccountActionLib.sol";
 import { AccountBalanceLib } from "../../../lib/AccountBalanceLib.sol";
+import { InterestIndexLib } from "../../../lib/InterestIndexLib.sol";
 
 
 /**
@@ -98,7 +102,7 @@ library IsolationModeTokenVaultV1ActionsImpl {
         uint256 _borrowAccountNumber,
         uint256 _toAccountNumber
     ) public {
-        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber);
+        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber, /* _bypassAccountNumberCheck = */ false);
         _checkToAccountNumberIsZero(_toAccountNumber);
 
         uint256[] memory collateralMarketIds = new uint256[](1);
@@ -119,7 +123,7 @@ library IsolationModeTokenVaultV1ActionsImpl {
         uint256 _toAccountNumber,
         uint256[] calldata _collateralMarketIds
     ) public {
-        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber);
+        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber, /* _bypassAccountNumberCheck = */ false);
         uint256 underlyingMarketId = _vault.marketId();
         for (uint256 i = 0; i < _collateralMarketIds.length; i++) {
             Require.that(
@@ -146,7 +150,7 @@ library IsolationModeTokenVaultV1ActionsImpl {
         uint256 _amountWei
     ) public {
         _checkFromAccountNumberIsZero(_fromAccountNumber);
-        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber);
+        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber, /* _bypassAccountNumberCheck = */ false);
 
         _vault.BORROW_POSITION_PROXY().transferBetweenAccounts(
             _fromAccountNumber,
@@ -164,9 +168,10 @@ library IsolationModeTokenVaultV1ActionsImpl {
         uint256 _marketId,
         uint256 _amountWei,
         AccountBalanceLib.BalanceCheckFlag _balanceCheckFlag,
-        bool _checkAllowableCollateralMarketFlag
+        bool _checkAllowableCollateralMarketFlag,
+        bool _bypassAccountNumberCheck
     ) public {
-        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber);
+        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber, _bypassAccountNumberCheck);
         _checkMarketIdIsNotSelf(_vault, _marketId);
 
         _vault.BORROW_POSITION_PROXY().transferBetweenAccountsWithDifferentAccounts(
@@ -195,7 +200,7 @@ library IsolationModeTokenVaultV1ActionsImpl {
         uint256 _toAccountNumber,
         uint256 _amountWei
     ) public {
-        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber);
+        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber, /* _bypassAccountNumberCheck = */ false);
         _checkToAccountNumberIsZero(_toAccountNumber);
 
         _vault.BORROW_POSITION_PROXY().transferBetweenAccounts(
@@ -213,9 +218,10 @@ library IsolationModeTokenVaultV1ActionsImpl {
         uint256 _toAccountNumber,
         uint256 _marketId,
         uint256 _amountWei,
-        AccountBalanceLib.BalanceCheckFlag _balanceCheckFlag
+        AccountBalanceLib.BalanceCheckFlag _balanceCheckFlag,
+        bool _bypassAccountNumberCheck
     ) public {
-        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber);
+        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber, _bypassAccountNumberCheck);
         _checkMarketIdIsNotSelf(_vault, _marketId);
 
         _vault.BORROW_POSITION_PROXY().transferBetweenAccountsWithDifferentAccounts(
@@ -238,7 +244,7 @@ library IsolationModeTokenVaultV1ActionsImpl {
         uint256 _marketId,
         AccountBalanceLib.BalanceCheckFlag _balanceCheckFlag
     ) public {
-        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber);
+        _checkBorrowAccountNumberIsNotZero(_borrowAccountNumber, /* _bypassAccountNumberCheck = */ false);
         _checkMarketIdIsNotSelf(_vault, _marketId);
         _vault.BORROW_POSITION_PROXY().repayAllForBorrowPositionWithDifferentAccounts(
             /* _fromAccountOwner = */ _vault.OWNER(),
@@ -261,6 +267,15 @@ library IsolationModeTokenVaultV1ActionsImpl {
         IDolomiteMargin.AccountInfo[] memory _makerAccounts,
         IGenericTraderProxyV1.UserConfig memory _userConfig
     ) public {
+        if (_borrowAccountNumber == 0) {
+            uint256 marketId = _vault.marketId();
+            Require.that(
+                _marketIdsPath[0] != marketId && _marketIdsPath[_marketIdsPath.length - 1] == marketId,
+                _FILE,
+                "Invalid marketId for swap/add"
+            );
+        }
+
         if (_marketIdsPath[0] == _vault.marketId()) {
             transferIntoPositionWithUnderlyingToken(
                 _vault,
@@ -278,6 +293,7 @@ library IsolationModeTokenVaultV1ActionsImpl {
                 );
             }
             // we always swap the exact amount out; no need to check `BalanceCheckFlag.To`
+            // always skip the checking allowable collateral, since we're immediately trading all of it here
             transferIntoPositionWithOtherToken(
                 _vault,
                 _fromAccountNumber,
@@ -285,7 +301,8 @@ library IsolationModeTokenVaultV1ActionsImpl {
                 _marketIdsPath[0],
                 _inputAmountWei,
                 AccountBalanceLib.BalanceCheckFlag.From,
-                /* _checkAllowableCollateralMarketFlag = */ false
+                /* _checkAllowableCollateralMarketFlag = */ false,
+                /* _bypassAccountNumberCheck = */ true
             );
         }
 
@@ -298,7 +315,8 @@ library IsolationModeTokenVaultV1ActionsImpl {
             _tradersPath,
             _makerAccounts,
             _userConfig,
-            /* _checkOutputMarketIdFlag = */ true
+            /* _checkOutputMarketIdFlag = */ true,
+            /* _bypassAccountNumberCheck = */ true
         );
     }
 
@@ -314,6 +332,15 @@ library IsolationModeTokenVaultV1ActionsImpl {
         IGenericTraderProxyV1.UserConfig memory _userConfig
     ) public {
         uint256 outputMarketId = _marketIdsPath[_marketIdsPath.length - 1];
+        if (_borrowAccountNumber == 0) {
+            uint256 marketId = _vault.marketId();
+            Require.that(
+                outputMarketId != marketId && _marketIdsPath[0] == marketId,
+                _FILE,
+                "Invalid marketId for swap/remove"
+            );
+        }
+
         IDolomiteStructs.Wei memory balanceDelta;
 
         // Create a new scope for stack too deep
@@ -335,7 +362,8 @@ library IsolationModeTokenVaultV1ActionsImpl {
                 _tradersPath,
                 _makerAccounts,
                 _userConfig,
-                /* _checkOutputMarketIdFlag = */ false
+                /* _checkOutputMarketIdFlag = */ false,
+                /* _bypassAccountNumberCheck = */ true
             );
 
             balanceDelta = dolomiteMargin
@@ -360,7 +388,8 @@ library IsolationModeTokenVaultV1ActionsImpl {
                 _toAccountNumber,
                 outputMarketId,
                 balanceDelta.value,
-                AccountBalanceLib.BalanceCheckFlag.None // we always transfer the exact amount out; no need to check
+                AccountBalanceLib.BalanceCheckFlag.None, // we always transfer the exact amount out; no need to check
+                /* _bypassAccountNumberCheck = */ true
             );
         }
     }
@@ -374,14 +403,17 @@ library IsolationModeTokenVaultV1ActionsImpl {
         IGenericTraderProxyV1.TraderParam[] memory _tradersPath,
         IDolomiteMargin.AccountInfo[] memory _makerAccounts,
         IGenericTraderProxyV1.UserConfig memory _userConfig,
-        bool _checkOutputMarketIdFlag
+        bool _checkOutputMarketIdFlag,
+        bool _bypassAccountNumberCheck
     ) public {
-        Require.that(
-            _tradeAccountNumber != 0,
-            _FILE,
-            "Invalid tradeAccountNumber",
-            _tradeAccountNumber
-        );
+        if (!_bypassAccountNumberCheck) {
+            Require.that(
+                _tradeAccountNumber != 0,
+                _FILE,
+                "Invalid tradeAccountNumber",
+                _tradeAccountNumber
+            );
+        }
 
         if (_inputAmountWei == AccountActionLib.all()) {
             _inputAmountWei = _getAndValidateBalanceForAllForMarket(
@@ -411,6 +443,40 @@ library IsolationModeTokenVaultV1ActionsImpl {
             _checkAllowableCollateralMarket(_vault, tradeAccountOwner, _tradeAccountNumber, outputMarketId);
             _checkAllowableDebtMarket(_vault, tradeAccountOwner, _tradeAccountNumber, outputMarketId);
         }
+    }
+
+    function checkIsLiquidatable(
+        IIsolationModeTokenVaultV1 _vault,
+        uint256 _accountNumber
+    ) public view {
+        IDolomiteMargin dolomiteMargin = _vault.DOLOMITE_MARGIN();
+        IDolomiteStructs.AccountInfo memory liquidAccount = IDolomiteStructs.AccountInfo({
+            owner: address(this),
+            number: _accountNumber
+        });
+        uint256[] memory marketsWithBalances = dolomiteMargin.getAccountMarketsWithBalances(liquidAccount);
+        BaseLiquidatorProxy.MarketInfo[] memory marketInfos = _getMarketInfos(
+            dolomiteMargin,
+            /* _solidMarketIds = */ new uint256[](0),
+            marketsWithBalances
+        );
+        (
+            IDolomiteStructs.MonetaryValue memory liquidSupplyValue,
+            IDolomiteStructs.MonetaryValue memory liquidBorrowValue
+        ) = _getAdjustedAccountValues(
+            dolomiteMargin,
+            marketInfos,
+            liquidAccount,
+            marketsWithBalances
+        );
+
+        IDolomiteStructs.Decimal memory marginRatio = dolomiteMargin.getMarginRatio();
+        Require.that(
+            dolomiteMargin.getAccountStatus(liquidAccount) != IDolomiteStructs.AccountStatus.Liquid
+                && _isCollateralized(liquidSupplyValue.value, liquidBorrowValue.value, marginRatio),
+            _FILE,
+            "Account liquidatable"
+        );
     }
 
     // ===================================================
@@ -526,6 +592,95 @@ library IsolationModeTokenVaultV1ActionsImpl {
         );
     }
 
+    function _getAdjustedAccountValues(
+        IDolomiteMargin _dolomiteMargin,
+        BaseLiquidatorProxy.MarketInfo[] memory _marketInfos,
+        IDolomiteStructs.AccountInfo memory _account,
+        uint256[] memory _marketIds
+    )
+        private
+        view
+        returns (
+            IDolomiteStructs.MonetaryValue memory supplyValue,
+            IDolomiteStructs.MonetaryValue memory borrowValue
+        )
+    {
+        return _getAccountValues(
+            _dolomiteMargin,
+            _marketInfos,
+            _account,
+            _marketIds,
+            /* _adjustForMarginPremiums = */ true
+        );
+    }
+
+    function _getAccountValues(
+        IDolomiteMargin _dolomiteMargin,
+        BaseLiquidatorProxy.MarketInfo[] memory _marketInfos,
+        IDolomiteStructs.AccountInfo memory _account,
+        uint256[] memory _marketIds,
+        bool _adjustForMarginPremiums
+    )
+        private
+        view
+        returns (
+            IDolomiteStructs.MonetaryValue memory,
+            IDolomiteStructs.MonetaryValue memory
+        )
+    {
+        IDolomiteStructs.MonetaryValue memory supplyValue = IDolomiteStructs.MonetaryValue(0);
+        IDolomiteStructs.MonetaryValue memory borrowValue = IDolomiteStructs.MonetaryValue(0);
+        for (uint256 i; i < _marketIds.length; ++i) {
+            IDolomiteStructs.Par memory par = _dolomiteMargin.getAccountPar(_account, _marketIds[i]);
+            BaseLiquidatorProxy.MarketInfo memory marketInfo = _binarySearch(_marketInfos, _marketIds[i]);
+            IDolomiteStructs.Wei memory userWei = InterestIndexLib.parToWei(par, marketInfo.index);
+            uint256 assetValue = userWei.value * marketInfo.price.value;
+            IDolomiteStructs.Decimal memory marginPremium = DecimalLib.one();
+            if (_adjustForMarginPremiums) {
+                marginPremium = DecimalLib.onePlus(_dolomiteMargin.getMarketMarginPremium(_marketIds[i]));
+            }
+            if (userWei.sign) {
+                supplyValue.value = supplyValue.value + DecimalLib.div(assetValue, marginPremium);
+            } else {
+                borrowValue.value = borrowValue.value + DecimalLib.mul(assetValue, marginPremium);
+            }
+        }
+        return (supplyValue, borrowValue);
+    }
+
+    function _getMarketInfos(
+        IDolomiteMargin _dolomiteMargin,
+        uint256[] memory _solidMarketIds,
+        uint256[] memory _liquidMarketIds
+    ) private view returns (BaseLiquidatorProxy.MarketInfo[] memory) {
+        uint[] memory marketBitmaps = BitsLib.createBitmaps(_dolomiteMargin.getNumMarkets());
+        uint256 marketsLength = 0;
+        marketsLength = _addMarketsToBitmap(_solidMarketIds, marketBitmaps, marketsLength);
+        marketsLength = _addMarketsToBitmap(_liquidMarketIds, marketBitmaps, marketsLength);
+
+        uint256 counter = 0;
+        BaseLiquidatorProxy.MarketInfo[] memory marketInfos = new BaseLiquidatorProxy.MarketInfo[](marketsLength);
+        for (uint256 i; i < marketBitmaps.length && counter != marketsLength; ++i) {
+            uint256 bitmap = marketBitmaps[i];
+            while (bitmap != 0) {
+                uint256 nextSetBit = BitsLib.getLeastSignificantBit(bitmap);
+                uint256 marketId = BitsLib.getMarketIdFromBit(i, nextSetBit);
+
+                marketInfos[counter++] = BaseLiquidatorProxy.MarketInfo({
+                    marketId: marketId,
+                    price: _dolomiteMargin.getMarketPrice(marketId),
+                    index: _dolomiteMargin.getMarketCurrentIndex(marketId)
+                });
+
+                // unset the set bit
+                bitmap = BitsLib.unsetBit(bitmap, nextSetBit);
+            }
+        }
+
+        return marketInfos;
+    }
+
+
     function _checkFromAccountNumberIsZero(uint256 _fromAccountNumber) private pure {
         Require.that(
             _fromAccountNumber == 0,
@@ -544,12 +699,88 @@ library IsolationModeTokenVaultV1ActionsImpl {
         );
     }
 
-    function _checkBorrowAccountNumberIsNotZero(uint256 _borrowAccountNumber) private pure {
-        Require.that(
-            _borrowAccountNumber != 0,
-            _FILE,
-            "Invalid borrowAccountNumber",
-            _borrowAccountNumber
+    function _checkBorrowAccountNumberIsNotZero(
+        uint256 _borrowAccountNumber,
+        bool _bypassAccountNumberCheck
+    ) private pure {
+        if (!_bypassAccountNumberCheck) {
+            Require.that(
+                _borrowAccountNumber != 0,
+                _FILE,
+                "Invalid borrowAccountNumber",
+                _borrowAccountNumber
+            );
+        }
+    }
+
+    function _addMarketsToBitmap(
+        uint256[] memory _markets,
+        uint256[] memory _bitmaps,
+        uint256 _marketsLength
+    ) private pure returns (uint) {
+        for (uint256 i; i < _markets.length; ++i) {
+            if (!BitsLib.hasBit(_bitmaps, _markets[i])) {
+                BitsLib.setBit(_bitmaps, _markets[i]);
+                _marketsLength += 1;
+            }
+        }
+        return _marketsLength;
+    }
+
+    function _binarySearch(
+        BaseLiquidatorProxy.MarketInfo[] memory _markets,
+        uint256 _marketId
+    ) private pure returns (BaseLiquidatorProxy.MarketInfo memory) {
+        return _binarySearch(
+            _markets,
+            /* _beginInclusive = */ 0,
+            _markets.length,
+            _marketId
         );
+    }
+
+    function _binarySearch(
+        BaseLiquidatorProxy.MarketInfo[] memory _markets,
+        uint256 _beginInclusive,
+        uint256 _endExclusive,
+        uint256 _marketId
+    ) private pure returns (BaseLiquidatorProxy.MarketInfo memory) {
+        uint256 len = _endExclusive - _beginInclusive;
+        if (len == 0 || (len == 1 && _markets[_beginInclusive].marketId != _marketId)) {
+            revert("BaseLiquidatorProxy: Market not found"); // solhint-disable-line reason-string
+        }
+
+        uint256 mid = _beginInclusive + len / 2;
+        uint256 midMarketId = _markets[mid].marketId;
+        if (_marketId < midMarketId) {
+            return _binarySearch(
+                _markets,
+                _beginInclusive,
+                mid,
+                _marketId
+            );
+        } else if (_marketId > midMarketId) {
+            return _binarySearch(
+                _markets,
+                mid + 1,
+                _endExclusive,
+                _marketId
+            );
+        } else {
+            return _markets[mid];
+        }
+    }
+
+    function _isCollateralized(
+        uint256 _supplyValue,
+        uint256 _borrowValue,
+        IDolomiteStructs.Decimal memory _ratio
+    )
+        private
+        pure
+        returns (bool)
+    {
+        uint256 requiredMargin = DecimalLib.mul(_borrowValue, _ratio);
+        return _supplyValue >= _borrowValue + requiredMargin;
     }
 }

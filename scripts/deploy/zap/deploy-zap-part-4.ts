@@ -31,7 +31,7 @@ async function main() {
   await prettyPrintEncodedDataWithTypeSafety(
     core,
     core.gmxEcosystem!.live,
-    'glpIsolationModeFactory',
+    'dGlp',
     'setUserVaultImplementation',
     [glpTokenVaultAddress],
   );
@@ -46,8 +46,8 @@ async function main() {
 
   await prettyPrintEncodedDataWithTypeSafety(
     core,
-    core.pendleEcosystem!.live,
-    'ptGlpIsolationModeFactory',
+    core.pendleEcosystem!.glpMar2024,
+    'dPtGlp2024',
     'ownerSetUserVaultImplementation',
     [pendlePtGlpTokenVaultAddress],
   );

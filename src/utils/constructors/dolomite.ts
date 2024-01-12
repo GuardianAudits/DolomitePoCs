@@ -1,4 +1,5 @@
-import { BigNumberish } from 'ethers';
+import { BigNumber, BigNumberish } from 'ethers';
+import { parseEther } from 'ethers/lib/utils';
 import { CoreProtocol } from '../../../test/utils/setup';
 import { EventEmitterRegistry, IERC20 } from '../../types';
 import { IDolomiteInterestSetter, IDolomiteStructs } from '../../types/contracts/protocol/interfaces/IDolomiteMargin';
@@ -35,17 +36,24 @@ type OwnerAddMarketParameters = [
   }, BigNumberish, boolean, boolean
 ];
 
+export interface BaseOracleContract {
+  address: string;
+  getPrice: (token: string) => Promise<MonetaryPriceStruct>;
+}
+
+export interface BaseInterestRateSetterContract {
+  address: string;
+  getInterestRate: (token: string, borrowWei: BigNumberish, supplyWei: BigNumberish) => Promise<InterestRateStruct>;
+}
+
 export function getOwnerAddMarketParameters(
   token: IERC20,
-  priceOracle: { address: string; getPrice: (token: string) => Promise<MonetaryPriceStruct> },
-  interestSetter: {
-    address: string;
-    getInterestRate: (token: string, borrowWei: BigNumberish, supplyWei: BigNumberish) => Promise<InterestRateStruct>
-  },
+  priceOracle: BaseOracleContract,
+  interestSetter: BaseInterestRateSetterContract,
   marginPremium: BigNumberish,
   spreadPremium: BigNumberish,
   maxWei: BigNumberish,
-  isClosing: boolean,
+  isCollateralOnly: boolean,
   isRecyclable: boolean = false,
 ): OwnerAddMarketParameters {
   return [
@@ -55,9 +63,40 @@ export function getOwnerAddMarketParameters(
     { value: marginPremium },
     { value: spreadPremium },
     maxWei,
-    isClosing,
+    isCollateralOnly,
     isRecyclable,
   ];
+}
+
+export enum TargetCollateralization {
+  _120 = '1.20',
+  _125 = '1.25',
+  _150 = '1.50',
+  _166 = '1.66666666',
+}
+
+export function getMarginPremiumForTargetCollateralization(
+  targetCollateralization: TargetCollateralization,
+): BigNumber {
+  const one = parseEther('1');
+  const baseCollateralization = parseEther('1.15');
+  return parseEther(targetCollateralization).mul(one).div(baseCollateralization).sub(one);
+}
+
+export enum TargetLiquidationPenalty {
+  _6 = '0.06',
+  _7 = '0.07',
+  _8 = '0.08',
+  _10 = '0.10',
+  _15 = '0.15',
+}
+
+export function getLiquidationPremiumForTargetLiquidationPenalty(
+  targetPenalty: TargetLiquidationPenalty,
+): BigNumber {
+  const one = parseEther('1');
+  const baseAmount = parseEther('0.05');
+  return parseEther(targetPenalty).mul(one).div(baseAmount).sub(one);
 }
 
 export function getOwnerAddMarketParametersForIsolationMode(

@@ -24,7 +24,7 @@ export const NETWORK_ID: Network = Network[typedNetworkIdString as keyof typeof 
 export const NO_EXPIRY = BigNumber.from('0');
 
 export const NETWORK_TO_DEFAULT_BLOCK_NUMBER_MAP: Record<Network, number> = {
-  [Network.ArbitrumOne]: 114_200_000,
+  [Network.ArbitrumOne]: 164_782_000,
   [Network.ArbitrumGoerli]: 14_700_000,
 };
 
@@ -36,6 +36,7 @@ export const ONE_WEEK_SECONDS = 604_800;
 
 export const BYTES_EMPTY = '0x';
 export const BYTES_ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
+export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 
 export const ZERO_BI = BigNumber.from('0');
 

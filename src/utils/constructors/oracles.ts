@@ -1,5 +1,6 @@
 import { BigNumberish } from 'ethers';
 import { CoreProtocol } from '../../../test/utils/setup';
+import { IAlgebraV3Pool, IERC20 } from 'src/types';
 
 export async function getChainlinkPriceOracleParams(
   core: CoreProtocol,
@@ -21,4 +22,12 @@ export async function getChainlinkPriceOracleParams(
     }
   }
   return [tokens, aggregators, tokenDecimals, tokenPairs, core.dolomiteMargin.address];
+}
+
+export function getTWAPPriceOracleConstructorParams(
+  core: CoreProtocol,
+  token: IERC20,
+  tokenPairs: IAlgebraV3Pool[],
+): any[] {
+  return [token.address, tokenPairs.map(pair => pair.address), core.dolomiteMargin.address];
 }
